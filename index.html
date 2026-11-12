@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#05030a" />
+  <meta name="description" content="Scrapline: a 16-bit cyberpunk endless runner. Hunt robots for bounty in the wastes and outrun the scrap storm." />
+  <title>Scrapline</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #05030a; overflow: hidden; overscroll-behavior: none; }
+    body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    #game { position: fixed; inset: 0; }
+    canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+    #rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #05030a; color: #3df5ff;
+      font: 12px/1.6 monospace; align-items: center; justify-content: center; text-align: center; letter-spacing: 2px; }
+    @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="rotate">ROTATE YOUR DEVICE<br/>TO PLAY SCRAPLINE</div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
