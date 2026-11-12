@@ -7,6 +7,7 @@ import { Player, Enemy, Boss } from '../entities.js';
 import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, loadSave } from '../data.js';
 import { W, H, txt, cityBackdrop, ashFall, glow, fmt, COL } from '../ui.js';
 import { TouchControls } from '../touch.js';
+import { sfx, playMusic, setStorm, stopStorm } from '../audio.js';
 
 const GY = 224;   // ground level
 const T = 16;     // tile size; 1 tile = 1 meter
@@ -100,7 +101,10 @@ export default class Run extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.game.events.off(Phaser.Core.Events.HIDDEN, this.onHidden);
       this.game.events.off(Phaser.Core.Events.BLUR, this.onHidden);
+      stopStorm();
     });
+    playMusic(this.mode === 'arena' ? 'boss' : 'run');
+    this.chipCombo = 0; this.chipT = 0;
 
     if (this.mode === 'arena') this.time.delayedCall(700, () => this.startBossFight(this.arena, this.bossId, 1, false));
     if (this.mode === 'training') this.startTraining();
@@ -343,6 +347,7 @@ export default class Run extends Phaser.Scene {
     this.stormEdge.tilePositionY += dt * 0.3;
     this.stormGlow.setPosition(this.stormX - 10, cam.scrollY + 135);
     this.stormFx.setPosition(this.stormX, cam.scrollY);
+    if (!p.dead) setStorm(Phaser.Math.Clamp(1 - (p.x - this.stormX) / 420, 0, 1));
     const close = this.stormX > cam.scrollX + 10;
     this.hud.stormWarn.setVisible(close && Math.floor(this.time.now / 250) % 2 === 0);
     if (!p.dead && p.x < this.stormX + 6) { this.banner('CAUGHT IN THE STORM', '', COL.red); this.killPlayer(); }
@@ -367,6 +372,7 @@ export default class Run extends Phaser.Scene {
       }
     }
     this.banner('WARNING', 'Hostile signature detected', COL.mag, 1300);
+    sfx('warning'); playMusic('boss');
     this.time.delayedCall(1300, () => {
       if (this.ended) return;
       const cfg = BOSSES[id];
@@ -386,6 +392,7 @@ export default class Run extends Phaser.Scene {
     this.enemies.getChildren().slice().forEach(e => { if (e !== boss && e.type === 'drone' && this.mode !== 'training') { e.dying = true; this.fxBoom(e.x, e.y, 0.6); e.destroy(); } });
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 150, () => this.fxBoom(boss.x + Phaser.Math.Between(-20, 20), boss.y + Phaser.Math.Between(-16, 16), 1.2));
     cam.shake(900, 0.012);
+    sfx('bossDown');
     this.time.delayedCall(950, () => {
       const bx = boss.x, by = boss.y;
       boss.destroy(); this.boss = null;
@@ -405,8 +412,10 @@ export default class Run extends Phaser.Scene {
         cam.startFollow(this.player, true, 0.15, 0.12, -70, 30);
         cam.setBounds(this.camMinX, -220, 1e7, 490);
         this.stormX = this.camMinX - 260; this.stormPaused = false;
+        playMusic('run');
       } else if (this.mode === 'arena') {
         this.banner('TARGET ELIMINATED', '', COL.lime);
+        sfx('victory');
         this.time.delayedCall(1800, () => this.finish(true));
       } else {
         this.banner('SIM COMPLETE', '', COL.cyan);
@@ -462,6 +471,7 @@ export default class Run extends Phaser.Scene {
   fire(p) {
     const w = this.weapon, dir = p.facing;
     const mx = p.x + dir * 11, my = p.y - 11;
+    sfx(w.melee ? 'blade' : this.weaponId);
     if (w.melee) return this.slash(p, dir);
     if (w.grenade) {
       const g = this.grenades.create(mx, my, 'grenade');
@@ -496,7 +506,7 @@ export default class Run extends Phaser.Scene {
       if (!e.active || e.dying) continue;
       const eb = e.body;
       if (Phaser.Geom.Intersects.RectangleToRectangle(r, new Phaser.Geom.Rectangle(eb.x, eb.y, eb.width, eb.height))) {
-        e.hurt(dmg); this.fxSpark.explode(6, e.x, e.y);
+        e.hurt(dmg); sfx('hit'); this.fxSpark.explode(6, e.x, e.y);
       }
     }
     for (const b of this.eBullets.getChildren().slice()) {
@@ -507,6 +517,7 @@ export default class Run extends Phaser.Scene {
   bulletHitEnemy(b, e) {
     if (!b.active || e.dying || b.hits.has(e)) return;
     e.hurt(b.dmg);
+    sfx('hit');
     this.fxSpark.explode(4, b.x, b.y);
     if (b.pierce) b.hits.add(e); else b.destroy();
   }
@@ -516,6 +527,7 @@ export default class Run extends Phaser.Scene {
     const x = g.x, y = g.y, R = g.radius, dmg = g.dmg;
     g.destroy();
     this.fxBoom(x, y, 1.4);
+    sfx('explode');
     this.cameras.main.shake(120, 0.006);
     for (const e of this.enemies.getChildren().slice()) {
       if (e.active && !e.dying && Phaser.Math.Distance.Between(x, y, e.x, e.y) < R + e.body.width / 2) e.hurt(dmg);
@@ -526,6 +538,7 @@ export default class Run extends Phaser.Scene {
     b.body.setVelocity(Math.cos(a) * speed, Math.sin(a) * speed);
     b.body.setSize(b.width - 2, b.height - 2).setOffset(1, 1);
     b.life = 4500; b.setDepth(34);
+    sfx('enemyShot');
     return b;
   }
   enemyShoot(x, y, tx, ty, speed) { return this.enemyShootAngle(x, y, Math.atan2(ty - y, tx - x), speed); }
@@ -538,6 +551,7 @@ export default class Run extends Phaser.Scene {
     const b = this.eBullets.create(x, y, 'e_shock');
     b.setOrigin(0.5, 1); b.y = y + 5; b.body.setVelocity(vx, 0); b.setFlipX(vx < 0);
     b.noSolid = true; b.life = 2800; b.setDepth(34);
+    sfx('shock');
   }
   enemyBomb(x, y, vx, vy) {
     const b = this.eBombs.create(x, y, 'e_bomb');
@@ -547,12 +561,14 @@ export default class Run extends Phaser.Scene {
     const A = this.arena;
     const line = this.add.rectangle(A.left, y, A.right - A.left, 1, 0xff4a3d).setOrigin(0, 0.5).setDepth(33);
     this.tweens.add({ targets: line, alpha: 0.2, duration: 70, yoyo: true, repeat: -1 });
+    sfx('laserCharge');
     this.time.delayedCall(teleMs, () => {
       line.destroy();
       if (this.ended || !this.boss) return;
       const beam = this.eBullets.create((A.left + A.right) / 2, y, 'e_laser');
       beam.setDisplaySize(A.right - A.left, 8).setDepth(33);
       beam.noSolid = true; beam.persistent = true; beam.life = beamMs;
+      sfx('laserFire');
       const g = glow(this, (A.left + A.right) / 2, y, COL.red, 1, 0.6).setScale(16, 0.6).setDepth(32);
       this.tweens.add({ targets: g, alpha: 0, duration: beamMs, onComplete: () => g.destroy() });
       this.cameras.main.shake(beamMs, 0.004);
@@ -563,6 +579,7 @@ export default class Run extends Phaser.Scene {
     const x = b.x, y = b.y;
     b.destroy();
     this.fxBoom(x, y, 1);
+    sfx('explode');
     if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y - 10) < 24) this.hurtPlayer(x);
   }
 
@@ -572,9 +589,10 @@ export default class Run extends Phaser.Scene {
     if (this.boss) this.bossHit = true;
     if (this.armor > 0) {
       this.armor--;
+      sfx('armorBreak');
       this.fxSpark.explode(12, p.x, p.y - 10);
       this.popup(p.x, p.y - 26, 'ARMOR BROKEN', '#3df5ff');
-    } else this.hp--;
+    } else { this.hp--; sfx('hurt'); }
     p.invuln = 1100;
     p.body.setVelocity(Math.sign(p.x - srcX || -p.facing) * 150, -200);
     this.cameras.main.shake(150, 0.008);
@@ -586,6 +604,7 @@ export default class Run extends Phaser.Scene {
     const p = this.player;
     if (p.dead) return;
     p.dead = true; this.hp = 0;
+    sfx('death'); stopStorm();
     p.body.enable = false; p.setVisible(false);
     this.fxBoom(p.x, p.y - 10, 1.4);
     this.fxDebris.explode(14, p.x, p.y - 10);
@@ -594,6 +613,7 @@ export default class Run extends Phaser.Scene {
   }
 
   onEnemyKilled(e) {
+    sfx('explode');
     this.fxBoom(e.x, e.y, 0.8);
     this.fxDebris.explode(5, e.x, e.y);
     if (this.mode === 'training') { this.stats.kills++; return; }
@@ -621,9 +641,13 @@ export default class Run extends Phaser.Scene {
     if (c.kind === 'med') {
       if (this.hp < this.maxHp) this.hp++; else this.armor = Math.min(3, this.armor + 1);
       this.popup(c.x, c.y - 8, this.hp < this.maxHp ? '+1 HEALTH' : '+1 ARMOR', '#ff3d8b');
+      sfx('heal');
     } else {
       this.stats.bounty += c.val;
       this.stats.chipScore += 10;
+      const now = this.time.now;
+      this.chipCombo = now - this.chipT < 700 ? this.chipCombo + 1 : 0; this.chipT = now;
+      sfx('chip', this.chipCombo);
     }
     this.fxSpark.explode(3, c.x, c.y);
     c.destroy();
@@ -638,6 +662,7 @@ export default class Run extends Phaser.Scene {
     const g = glow(this, x, cam.scrollY, COL.cyan, 1.2, 0.5).setDepth(15);
     c.glow = g;
     this.popup(cam.scrollX + W / 2, cam.scrollY + 60, 'SUPPLY DROP INBOUND', '#3df5ff', true);
+    sfx('supply');
   }
   openCrate(c) {
     if (!c.active) return;
@@ -651,6 +676,7 @@ export default class Run extends Phaser.Scene {
     if (s.id === 'jets') { this.mods.jets++; this.player.airJumps = 1 + this.mods.jets; }
     if (s.id === 'magnet') this.mods.magnet = true;
     this.banner(s.name, s.desc, s.color);
+    sfx('crate');
     this.fxSpark.explode(16, c.x, c.y);
     c.glow?.destroy(); c.destroy();
   }

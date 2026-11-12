@@ -1,3 +1,4 @@
+import { playMusic } from '../audio.js';
 // Mini-boss arena: beat each mini-boss to unlock its weapon.
 import Phaser from 'phaser';
 import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
@@ -11,6 +12,7 @@ export default class Arena extends Phaser.Scene {
     this._leaving = false;
     const save = loadSave();
     drawRooftop(this, { dim: 0.55 });
+    playMusic('menu');
     panel(this, 16, 14, W - 32, H - 28, { border: COL.mag });
     txt(this, 28, 24, 'MINI-BOSS ARENA', { head: true, color: '#ff3d8b' });
     txt(this, 28, 38, 'Defeat each mini-boss to claim its weapon. Rematches are always open.', { color: '#8a84ad' });

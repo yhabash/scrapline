@@ -2,6 +2,9 @@
 import Phaser from 'phaser';
 import { FONT_H, FONT_B } from './fonts.js';
 import { PAL } from './art.js';
+import { sfx } from './audio.js';
+
+const typing = () => document.activeElement && document.activeElement.tagName === 'INPUT';
 
 export const W = 480, H = 270;
 export const COL = {
@@ -52,7 +55,11 @@ export class Button {
   setLabel(s) { this.t.setText(s); this.layout(); }
   setEnabled(v) { this.enabled = v; this.draw(); return this; }
   setFocus(v) { this.focused = v; this.draw(); }
-  press() { if (this.enabled && this.onClick) this.onClick(this); }
+  press() {
+    if (!this.enabled) { sfx('uiDenied'); return; }
+    sfx(this.sound || 'uiSelect');
+    this.onClick?.(this);
+  }
   draw() {
     const g = this.g; g.clear();
     const c = this.enabled ? this.color : COL.m3;
@@ -72,12 +79,12 @@ export class FocusNav {
     this.scene = scene; this.items = []; this.i = 0; this.onBack = onBack;
     const kb = scene.input.keyboard;
     kb.on('keydown', (e) => {
-      if (!this.items.length) return;
+      if (!this.items.length || typing()) return;
       const k = e.code;
       if (k === 'ArrowDown' || k === 'KeyS' || k === 'ArrowRight' || k === 'KeyD') this.move(1);
       else if (k === 'ArrowUp' || k === 'KeyW' || k === 'ArrowLeft' || k === 'KeyA') this.move(-1);
       else if (k === 'Enter' || k === 'Space' || k === 'KeyJ' || k === 'KeyX') this.items[this.i]?.press();
-      else if (k === 'Escape' || k === 'Backspace') this.onBack?.();
+      else if (k === 'Escape' || k === 'Backspace') { if (this.onBack) { sfx('uiBack'); this.onBack(); } }
     });
   }
   set(items, start = 0) { this.items = items; this.i = Math.min(start, items.length - 1); this.items.forEach((b, j) => b.setFocus(j === this.i)); }
@@ -86,8 +93,9 @@ export class FocusNav {
     this.items[this.i]?.setFocus(false);
     this.i = (this.i + d + this.items.length) % this.items.length;
     this.items[this.i].setFocus(true);
+    sfx('uiMove');
   }
-  focusItem(b) { const j = this.items.indexOf(b); if (j < 0) return; this.items[this.i]?.setFocus(false); this.i = j; b.setFocus(true); }
+  focusItem(b) { const j = this.items.indexOf(b); if (j < 0 || j === this.i) { b.setFocus(true); return; } this.items[this.i]?.setFocus(false); this.i = j; b.setFocus(true); sfx('uiMove'); }
 }
 
 // Parallax city backdrop used by the menu and the run.

@@ -1,3 +1,4 @@
+import { playMusic } from '../audio.js';
 import Phaser from 'phaser';
 import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
 import { ACHIEVEMENTS, WEAPONS, loadSave } from '../data.js';
@@ -10,6 +11,7 @@ export default class Achievements extends Phaser.Scene {
     this._leaving = false;
     const save = loadSave();
     drawRooftop(this, { dim: 0.55 });
+    playMusic('menu');
     panel(this, 16, 14, W - 32, H - 28, { border: COL.amber });
     const done = ACHIEVEMENTS.filter(a => save.achievements[a.id]).length;
     txt(this, 28, 24, 'ACHIEVEMENTS', { head: true, color: '#ffb03d' });

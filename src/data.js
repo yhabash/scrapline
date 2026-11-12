@@ -1,6 +1,6 @@
 // Game data: weapons, enemies, bosses, specimens, achievements, supply drops, and the save file.
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 export const WEAPONS = {
   pistol: { name: 'Scrap Pistol', desc: 'Reliable sidearm. Steady fire.', rate: 260, dmg: 1, speed: 440, spread: 2, pellets: 1, tex: 'b_pistol', life: 900, unlock: 'Starting weapon' },

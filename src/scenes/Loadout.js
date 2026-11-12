@@ -1,3 +1,4 @@
+import { playMusic } from '../audio.js';
 // Weapon selection before a run (and before arena fights).
 import Phaser from 'phaser';
 import { W, H, txt, panel, Button, FocusNav, COL } from '../ui.js';
@@ -12,6 +13,7 @@ export default class Loadout extends Phaser.Scene {
     this._leaving = false;
     this.save = loadSave();
     drawRooftop(this, { dim: 0.55 });
+    playMusic('menu');
     panel(this, 16, 14, W - 32, H - 28);
     txt(this, 28, 24, 'CHOOSE YOUR WEAPON', { head: true, color: '#3df5ff' });
     txt(this, 28, 38, 'One weapon per run. Unlock more in the arena and through achievements.', { color: '#8a84ad' });

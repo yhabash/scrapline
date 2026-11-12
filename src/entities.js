@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ENEMIES, BOSSES } from './data.js';
+import { sfx } from './audio.js';
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 export const roman = (n) => ROMAN[n] || String(n);
@@ -49,13 +50,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (inp.jumpPressed) this.jumpBuf = 120; else this.jumpBuf -= dt;
     if (this.jumpBuf > 0) {
       if (this.coyote > 0) {
-        b.velocity.y = -330; this.coyote = 0; this.jumpBuf = 0; s.fxPuff(this.x, this.y);
+        b.velocity.y = -330; this.coyote = 0; this.jumpBuf = 0; s.fxPuff(this.x, this.y); sfx('jump');
       } else if (this.wallGrace > 0) {
         b.velocity.y = -320; b.velocity.x = -this.wallDir * 200; this.wallLock = 150;
         this.facing = -this.wallDir; this.wallGrace = 0; this.jumpBuf = 0; this.jumpsLeft = this.airJumps;
-        s.stats.wallJumps++; s.fxPuff(this.x + this.wallDir * 6, this.y - 10);
+        s.stats.wallJumps++; s.fxPuff(this.x + this.wallDir * 6, this.y - 10); sfx('wallJump');
       } else if (this.jumpsLeft > 0) {
-        b.velocity.y = -290; this.jumpsLeft--; this.jumpBuf = 0; s.fxPuff(this.x, this.y, 0x3df5ff);
+        b.velocity.y = -290; this.jumpsLeft--; this.jumpBuf = 0; s.fxPuff(this.x, this.y, 0x3df5ff); sfx('doubleJump');
       }
     }
     if (!inp.jump && b.velocity.y < -170) b.velocity.y = -170; // short hop on release

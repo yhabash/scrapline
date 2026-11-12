@@ -1,3 +1,4 @@
+import { playMusic, sfx } from '../audio.js';
 // Training room: buy captured specimens with bounty, then practice against them anytime.
 import Phaser from 'phaser';
 import { W, H, txt, panel, Button, FocusNav, COL, fmt, glow } from '../ui.js';
@@ -23,6 +24,7 @@ export default class Training extends Phaser.Scene {
     this._leaving = false;
     this.save = loadSave();
     this.add.image(0, 0, 'bg_training').setOrigin(0);
+    playMusic('menu');
     [60, 240, 420].forEach(x => glow(this, x, 26, 0x6ef0ff, 1.2, 0.8));
     glow(this, 240, 36, COL.cyan, 3, 0.2);
     this.add.rectangle(0, 0, W, H, 0x05030a, 0.6).setOrigin(0);
@@ -115,6 +117,7 @@ export default class Training extends Phaser.Scene {
     const fx = glow(this, p.x, p.y, COL.lime, 2, 0.9);
     this.tweens.add({ targets: fx, alpha: 0, scale: 3, duration: 500, onComplete: () => fx.destroy() });
     this.cameras.main.flash(150, 40, 120, 80);
+    sfx('buy');
     this.select(this.sel);
   }
 }

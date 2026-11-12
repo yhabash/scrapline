@@ -4,6 +4,7 @@ import { loadSave, VERSION } from '../data.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
 import { isTouchDevice } from '../touch.js';
 import { FONT_H } from '../fonts.js';
+import { sfx, playMusic } from '../audio.js';
 
 export default class Menu extends Phaser.Scene {
   constructor() { super('Menu'); }
@@ -12,6 +13,7 @@ export default class Menu extends Phaser.Scene {
     this._leaving = false;
     const save = loadSave();
     drawRooftop(this);
+    playMusic('menu');
 
     // logo
     const logo = this.add.text(24, 40, 'SCRAPLINE', { fontFamily: FONT_H, fontSize: '24px', color: '#ffffff' });
@@ -25,11 +27,12 @@ export default class Menu extends Phaser.Scene {
       { label: 'TRAINING ROOM', note: trainingOpen ? '' : 'finish a run first', enabled: trainingOpen, go: () => transitionTo(this, 'Training') },
       { label: 'MINI-BOSS ARENA', go: () => transitionTo(this, 'Arena') },
       { label: 'ACHIEVEMENTS', go: () => transitionTo(this, 'Achievements') },
-      { label: 'LEADERBOARD', note: 'coming soon', go: () => this.toast('LEADERBOARD COMING SOON') },
+      { label: 'LEADERBOARD', go: () => transitionTo(this, 'Leaderboard') },
+      { label: 'SETTINGS', go: () => transitionTo(this, 'Settings') },
     ];
     this.cursor = txt(this, 26, 0, '>', { color: '#3df5ff' });
     this.rows = items.map((it, i) => {
-      const y = 108 + i * 15;
+      const y = 102 + i * 14;
       const t = txt(this, 36, y, it.label, { color: it.enabled === false ? '#575177' : '#c9c5e3' });
       if (it.note) txt(this, 36 + t.width + 8, y, it.note, { color: '#575177' });
       const z = this.add.zone(20, y - 3, 200, 14).setOrigin(0).setInteractive({ useHandCursor: true });
@@ -38,6 +41,7 @@ export default class Menu extends Phaser.Scene {
       return { ...it, t, y };
     });
     this.sel = 0; this.focus(0);
+    this.sel = 0;
     this.input.keyboard.on('keydown', (e) => {
       if (['ArrowDown', 'KeyS'].includes(e.code)) this.focus((this.sel + 1) % this.rows.length);
       if (['ArrowUp', 'KeyW'].includes(e.code)) this.focus((this.sel - 1 + this.rows.length) % this.rows.length);
@@ -47,19 +51,21 @@ export default class Menu extends Phaser.Scene {
     this.add.sprite(26, 190, 'scrap', 0).setOrigin(0).play('scrap_spin');
     txt(this, 37, 190, fmt(save.bounty) + ' BOUNTY', { color: '#ffe4a8' });
     if (save.stats.bestScore) txt(this, 26, 202, 'BEST ' + fmt(save.stats.bestScore) + '  /  ' + fmt(save.stats.bestDistance) + 'm', { color: '#8a84ad' });
-    const help = isTouchDevice() ? 'Tap to choose' : 'MOVE A/D  JUMP SPACE  FIRE J or CLICK  PAUSE ESC';
+    const help = isTouchDevice() ? 'Tap to choose' : 'MOVE A/D  JUMP SPACE  FIRE J or CLICK  PAUSE ESC  MUTE M';
     txt(this, 26, H - 16, help, { color: '#575177' });
     txt(this, W - 6, H - 16, 'v' + VERSION, { color: '#575177', right: true });
     this.cameras.main.fadeIn(300);
   }
   focus(i) {
+    if (i !== this.sel && this.rows) sfx('uiMove');
     this.sel = i;
     this.rows.forEach((r, j) => r.t.setColor(r.enabled === false ? '#575177' : j === i ? '#3df5ff' : '#c9c5e3'));
     this.cursor.setY(this.rows[i].y);
   }
   activate() {
     const r = this.rows[this.sel];
-    if (r.enabled === false) { this.toast('FINISH A RUN TO UNLOCK'); return; }
+    if (r.enabled === false) { sfx('uiDenied'); this.toast('FINISH A RUN TO UNLOCK'); return; }
+    sfx('uiSelect');
     r.go();
   }
   toast(s) {

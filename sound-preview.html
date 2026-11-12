@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Scrapline sound preview</title></head>
+<body style="background:#05030a;color:#3df5ff;font:14px monospace"><p id="s">sound preview</p>
+<script type="module">
+import * as A from '/src/audio.js';
+window.runPreview = async () => {
+  A.unlockAudio();
+  const stream = A.recordTap();
+  const rec = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 160000 });
+  const chunks = []; rec.ondataavailable = e => chunks.push(e.data);
+  rec.start();
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const label = (t) => document.getElementById('s').textContent = t;
+  label('menu'); A.playMusic('menu'); await wait(10500);
+  A.stopMusic(); await wait(400);
+  const tour = ['pistol','smg','scatter','arc','rail','blade','launcher','jump','doubleJump','wallJump','enemyShot','hit','explode','chip','chip','chip','supply','crate','heal','hurt','armorBreak','warning','shock','laserCharge','laserFire','explodeBig','uiMove','uiSelect','buy','victory'];
+  for (let i = 0; i < tour.length; i++) { label(tour[i]); A.sfx(tour[i], tour[i] === 'chip' ? i : undefined); await wait(['warning','explodeBig','laserCharge','victory','crate'].includes(tour[i]) ? 1300 : 480); }
+  label('run'); A.playMusic('run'); await wait(16600);
+  A.stopMusic(); A.playMusic('boss'); label('boss'); await wait(14400);
+  A.stopMusic(); await wait(600);
+  rec.stop(); await wait(300);
+  const blob = new Blob(chunks, { type: 'audio/webm' });
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(s);
+};
+</script></body></html>

@@ -9,6 +9,16 @@ import GameOver from './scenes/GameOver.js';
 import Training from './scenes/Training.js';
 import Arena from './scenes/Arena.js';
 import Achievements from './scenes/Achievements.js';
+import Leaderboard from './scenes/Leaderboard.js';
+import Settings from './scenes/Settings.js';
+import { unlockAudio, suspendForHidden, toggleMute } from './audio.js';
+
+// Browsers only allow sound after a user gesture, so start audio on the first tap, click or key.
+['pointerdown', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, unlockAudio, { passive: true }));
+document.addEventListener('visibilitychange', () => suspendForHidden(document.hidden));
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyM' && !(document.activeElement && document.activeElement.tagName === 'INPUT')) toggleMute();
+});
 
 loadFonts().then(() => {
   const game = new Phaser.Game({
@@ -21,7 +31,8 @@ loadFonts().then(() => {
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 900 }, debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     input: { activePointers: 4 },
-    scene: [Boot, Menu, Loadout, Run, Pause, GameOver, Training, Arena, Achievements],
+    dom: { createContainer: true },
+    scene: [Boot, Menu, Loadout, Run, Pause, GameOver, Training, Arena, Achievements, Leaderboard, Settings],
   });
   window.__game = game;
 });
