@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
-import { W, H, txt, panel, Button, FocusNav, COL } from '../ui.js';
+import { H, centerLayout, txt, panel, Button, FocusNav, COL } from '../ui.js';
+
+const W = 480; // laid out at 480 wide, centred with centerLayout()
 import { drawRooftop, transitionTo } from './rooftop.js';
 import { getSettings, setSetting, toggleMute, playMusic, sfx } from '../audio.js';
 
 export default class Settings extends Phaser.Scene {
   constructor() { super('Settings'); }
   create() {
+    centerLayout(this);
     this._leaving = false;
     drawRooftop(this, { dim: 0.55 });
     playMusic('menu');

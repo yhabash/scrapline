@@ -1,7 +1,9 @@
 import { playMusic } from '../audio.js';
 // Weapon selection before a run (and before arena fights).
 import Phaser from 'phaser';
-import { W, H, txt, panel, Button, FocusNav, COL } from '../ui.js';
+import { H, centerLayout, txt, panel, Button, FocusNav, COL } from '../ui.js';
+
+const W = 480; // laid out at 480 wide, centred with centerLayout()
 import { WEAPONS, WEAPON_ORDER, loadSave, writeSave } from '../data.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
 
@@ -10,6 +12,7 @@ export default class Loadout extends Phaser.Scene {
   init(data) { this.next = data?.next || { scene: 'Run', data: { mode: 'run' } }; }
 
   create() {
+    centerLayout(this);
     this._leaving = false;
     this.save = loadSave();
     drawRooftop(this, { dim: 0.55 });

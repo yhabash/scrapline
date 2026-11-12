@@ -1,7 +1,9 @@
 import { playMusic } from '../audio.js';
 // Mini-boss arena: beat each mini-boss to unlock its weapon.
 import Phaser from 'phaser';
-import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
+import { H, centerLayout, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
+
+const W = 480; // laid out at 480 wide, centred with centerLayout()
 import { BOSSES, MINIBOSSES, WEAPONS, loadSave } from '../data.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
 
@@ -9,6 +11,7 @@ export default class Arena extends Phaser.Scene {
   constructor() { super('Arena'); }
 
   create() {
+    centerLayout(this);
     this._leaving = false;
     const save = loadSave();
     drawRooftop(this, { dim: 0.55 });
@@ -20,7 +23,7 @@ export default class Arena extends Phaser.Scene {
     const nav = new FocusNav(this, () => transitionTo(this, 'Menu'));
     const buttons = [];
     MINIBOSSES.forEach((mb, i) => {
-      const x = 28 + i * 144, y = 54, w = 136, h = 176;
+      const x = 28 + i * 144, y = 52, w = 136, h = 168;
       const beaten = !!save.mini[mb.id];
       const open = !mb.req || save.mini[mb.req];
       const cfg = BOSSES[mb.id];

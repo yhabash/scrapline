@@ -1,0 +1,11 @@
+{
+  "name": "Scrapline",
+  "short_name": "Scrapline",
+  "description": "A 16-bit cyberpunk endless runner. Hunt robots for bounty and outrun the scrap storm.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#05030a",
+  "theme_color": "#05030a",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

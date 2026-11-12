@@ -96,9 +96,9 @@ class Catalog extends Phaser.Scene {
     section('MINI-BOSSES (weapon unlocks)');
     item('boss_sawjaw', 'SAWJAW'); item('boss_warden', 'TESLA WARDEN'); item('boss_ronin', 'GUTTER RONIN');
     section('WEAPONS');
-    ['pistol', 'smg', 'scatter', 'arc', 'blade', 'launcher', 'rail'].forEach(w => item('w_' + w, w));
+    ['pistol', 'smg', 'scatter', 'arc', 'disc', 'launcher', 'rail'].forEach(w => item('w_' + w, w));
     section('PROJECTILES + FX');
-    ['b_pistol', 'b_smg', 'b_pellet', 'b_arc', 'b_rail', 'grenade', 'slash', 'e_bullet', 'e_orb', 'e_bomb', 'e_shock'].forEach(k => item(k, k.replace('b_', '').replace('e_', 'enemy ')));
+    ['b_pistol', 'b_smg', 'b_pellet', 'b_arc', 'b_disc', 'b_rail', 'grenade', 'slash', 'e_bullet', 'e_orb', 'e_bomb', 'e_shock'].forEach(k => item(k, k.replace('b_', '').replace('e_', 'enemy ')));
     item('boom', 'explosion'); item('smoke', 'smoke'); item('debris', 'debris');
     section('PICKUPS + UI');
     item('scrap', 'bounty chip'); item('medkit', 'medkit'); item('crate', 'supply drop'); item('heart', 'health'); item('heart_empty', 'lost'); item('shield', 'temp armor'); item('lock', 'locked'); item('check', 'done');

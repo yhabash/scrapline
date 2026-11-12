@@ -2,6 +2,7 @@ import { playMusic } from '../audio.js';
 // Results after a run or an arena fight. Banks bounty, records stats, awards achievements and unlocks.
 import Phaser from 'phaser';
 import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
+import { MAPS } from '../maps.js';
 import { BOSSES, MINIBOSSES, WEAPONS, loadSave, writeSave, applyResults } from '../data.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
 import { submitScore, rememberEntry } from '../net.js';
@@ -45,17 +46,17 @@ export default class GameOver extends Phaser.Scene {
 
     const rows = [];
     if (r.mode === 'run') {
-      rows.push(['DISTANCE', fmt(r.distance) + 'm'], ['ROBOTS DESTROYED', fmt(r.kills)], ['BOSSES DEFEATED', fmt(r.bosses)], ['SCORE', fmt(r.score)]);
+      rows.push(['MAP', (MAPS.find(m => m.id === r.map)?.name || '-') + '  #' + r.map], ['DISTANCE', fmt(r.distance) + 'm'], ['ROBOTS DESTROYED', fmt(r.kills)], ['BOSSES DEFEATED', fmt(r.bosses)], ['SCORE', fmt(r.score)]);
     } else {
       rows.push(['OPPONENT', BOSSES[r.boss].name], ['ROBOTS DESTROYED', fmt(r.kills)]);
     }
     rows.push(['BOUNTY BANKED', '+' + fmt(r.bounty + arenaBounty)]);
     rows.forEach(([k, v], i) => {
-      const y = 52 + i * 13;
+      const y = 50 + i * 12;
       txt(this, 80, y, k, { color: '#8a84ad' });
-      txt(this, W - 80, y, v, { right: true, color: k === 'SCORE' ? '#ffffff' : k === 'BOUNTY BANKED' ? '#ffe4a8' : '#c9c5e3' });
+      txt(this, W - 80, y, v, { right: true, color: k === 'SCORE' ? '#ffffff' : k === 'MAP' ? '#3df5ff' : k === 'BOUNTY BANKED' ? '#ffe4a8' : '#c9c5e3' });
     });
-    let y = 52 + rows.length * 13 + 6;
+    let y = 50 + rows.length * 12 + 5;
     if (r.mode === 'run' && r.score > prevBest && r.score > 0) {
       const nb = txt(this, W / 2, y, 'NEW PERSONAL BEST', { head: true, center: true, color: '#ffb03d' });
       this.tweens.add({ targets: nb, alpha: 0.3, duration: 400, yoyo: true, repeat: -1 });

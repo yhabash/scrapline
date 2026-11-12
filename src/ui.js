@@ -6,7 +6,18 @@ import { sfx } from './audio.js';
 
 const typing = () => document.activeElement && document.activeElement.tagName === 'INPUT';
 
-export const W = 480, H = 270;
+import { W, H, OX, isPhone } from './view.js';
+export { W, H, OX, isPhone };
+// Side walls beside the 480-wide training room art on wide screens.
+export function roomSides(scene, depth = -11) {
+  if (!OX) return;
+  const g = scene.add.graphics().setScrollFactor(0).setDepth(depth);
+  g.fillStyle(0x0d0a18, 1).fillRect(0, 0, W, H);
+  for (let y = 12; y < 224; y += 24) g.fillStyle(0x161226, 1).fillRect(0, y, W, 10);
+  g.fillStyle(0x221c36, 1).fillRect(0, 224, W, 2).fillStyle(0x14101f, 1).fillRect(0, 226, W, H - 226);
+}
+// Menus designed at 480 wide: shift the camera so they sit centred on wider phone screens.
+export function centerLayout(scene) { if (OX) scene.cameras.main.setScroll(-OX, 0); }
 export const COL = {
   cyan: 0x3df5ff, mag: 0xff3d8b, amber: 0xffb03d, lime: 0x9dff3d, red: 0xff4a3d,
   m0: 0x16131f, m1: 0x252136, m2: 0x3a3552, m3: 0x575177, m4: 0x8a84ad, ink: 0x0b0614,
@@ -99,11 +110,12 @@ export class FocusNav {
 }
 
 // Parallax city backdrop used by the menu and the run.
-export function cityBackdrop(scene, fixed = true) {
+export function cityBackdrop(scene, fixed = true, theme = null) {
   const sky = scene.add.image(0, 0, 'bg_sky').setOrigin(0).setScrollFactor(0).setDepth(-10);
   const far = scene.add.tileSprite(0, 80, W, 190, 'bg_far').setOrigin(0).setScrollFactor(0).setDepth(-9);
   const mid = scene.add.tileSprite(0, 100, W, 170, 'bg_mid').setOrigin(0).setScrollFactor(0).setDepth(-8);
   const fog = scene.add.tileSprite(0, 170, W, 60, 'fog').setOrigin(0).setScrollFactor(0).setDepth(-7);
+  if (theme) { sky.setTint(theme.sky); far.setTint(theme.far); mid.setTint(theme.mid); fog.setTint(theme.fog); }
   return {
     update(camX, camY = 0) {
       far.tilePositionX = camX * 0.12; mid.tilePositionX = camX * 0.3;

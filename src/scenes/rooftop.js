@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { W, H, cityBackdrop, ashFall, glow, COL } from '../ui.js';
 
 export function drawRooftop(scene, { heroX = 326, dim = 0 } = {}) {
+  const before = new Set(scene.children.list);
   const bd = cityBackdrop(scene);
   const RX = 250, RY = 206;
   scene.add.image(RX + 110, RY - 40, 'billboard').setOrigin(0.5, 1);
@@ -26,6 +27,8 @@ export function drawRooftop(scene, { heroX = 326, dim = 0 } = {}) {
   ashFall(scene, 3);
   scene.add.image(0, 0, 'vignette').setOrigin(0);
   if (dim) scene.add.rectangle(0, 0, W, H, 0x05030a, dim).setOrigin(0);
+  // pinned to the screen, so menus laid out at 480 wide can be centred with the camera (see centerLayout)
+  scene.children.list.forEach(o => { if (!before.has(o)) o.setScrollFactor?.(0); });
   let drift = 0;
   scene.events.on('update', (t, dt) => { drift += dt * 0.01; bd.update(drift); });
   return { hero };
