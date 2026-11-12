@@ -7,7 +7,7 @@ import { get, put } from '@vercel/blob';
 import { tidyName, isNameAllowed } from '../src/shared/names.js';
 
 const MAX = 100;
-const WEAPONS = ['pistol', 'smg', 'scatter', 'arc', 'blade', 'launcher', 'rail'];
+const WEAPONS = ['pistol', 'smg', 'scatter', 'arc', 'disc', 'blade', 'launcher', 'rail'];
 const USE_BLOB = !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 const memory = globalThis.__scraplineBoards || (globalThis.__scraplineBoards = new Map()); // local dev fallback
 const recent = new Map(); // light per-IP throttle (per function instance)
@@ -20,7 +20,11 @@ export function weekKey(d = new Date()) {
   const wk = Math.ceil(((t - y0) / 86400000 + 1) / 7);
   return `${t.getUTCFullYear()}-W${String(wk).padStart(2, '0')}`;
 }
-const pathFor = (board) => board === 'week' ? `leaderboard/week-${weekKey()}.json` : 'leaderboard/all-time.json';
+// Production keeps the real boards in leaderboard/. Staging and preview deployments
+// write to their own folder so test scores never reach the live game.
+const ENV = process.env.VERCEL_ENV || 'development';
+const ROOT = ENV === 'production' ? 'leaderboard' : `leaderboard-${ENV}`;
+const pathFor = (board) => board === 'week' ? `${ROOT}/week-${weekKey()}.json` : `${ROOT}/all-time.json`;
 
 async function readBoard(path) {
   if (!USE_BLOB) { const v = memory.get(path); return { list: v ? JSON.parse(v.body) : [], etag: v?.etag || null }; }
@@ -80,7 +84,7 @@ export default {
       if (request.method === 'GET') {
         const board = new URL(request.url).searchParams.get('board') === 'week' ? 'week' : 'all';
         const { list } = await readBoard(pathFor(board));
-        return json({ board, week: weekKey(), entries: list }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
+        return json({ board, week: weekKey(), env: ENV, entries: list }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
       }
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
