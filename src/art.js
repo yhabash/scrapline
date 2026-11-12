@@ -1,4 +1,5 @@
 // All Scrapline graphics are drawn here, pixel by pixel, into canvas textures.
+import { buildRooms } from './art_rooms.js';
 // Nothing is loaded from image files.
 
 export const PAL = {
@@ -386,7 +387,6 @@ export function buildArt(scene) {
   if (scene.textures.exists('merc')) return;
   sheet(scene, 'merc', 20, 24, 10, drawMerc, true);
   sheet(scene, 'drone', 18, 12, 2, (c, f) => drawDrone(c, f), true);
-  sheet(scene, 'buddy', 18, 12, 2, (c, f) => drawDrone(c, f, P.lime, [P.cyanD, P.cyan, P.cyanL]), true);
   sheet(scene, 'walker', 22, 22, 4, drawWalker, true);
   sheet(scene, 'turret', 18, 16, 2, drawTurret, true);
   sheet(scene, 'crawler', 16, 10, 2, drawCrawler, true);
@@ -481,43 +481,13 @@ export function buildArt(scene) {
     c.fillStyle = g; c.fillRect(0, 0, 480, 270);
     c.fillStyle = 'rgba(0,0,0,0.07)'; for (let y = 0; y < 270; y += 2) c.fillRect(0, y, 480, 1);
   });
-  // hideout + training room interiors
-  single(scene, 'bg_hideout', 480, 270, c => {
-    R(c, '#0e0918', 0, 0, 480, 270);
-    for (let x = 0; x < 480; x += 32) { R(c, '#160f24', x, 0, 30, 200); R(c, '#1d1430', x, 0, 1, 200); }
-    R(c, '#120c1d', 0, 200, 480, 70); R(c, P.m2, 0, 200, 480, 1);
-    for (let x = 0; x < 480; x += 24) R(c, '#1a1228', x, 210, 12, 1);
-    // window to the wastes
-    box(c, 30, 30, 90, 60, '#2a1238', P.m2, P.m1); R(c, '#8e2c47', 32, 60, 86, 28); R(c, '#c9543a', 32, 76, 86, 12);
-    R(c, '#140a1e', 36, 66, 10, 22); R(c, '#140a1e', 52, 58, 14, 30); R(c, '#140a1e', 80, 70, 20, 18); R(c, P.m1, 74, 32, 2, 56);
-    // workbench
-    box(c, 330, 150, 120, 8, P.rust1, P.rust2, P.rust0); R(c, P.m1, 336, 158, 4, 42); R(c, P.m1, 440, 158, 4, 42);
-    R(c, P.m3, 350, 142, 30, 8); R(c, P.cyan, 354, 144, 6, 1); R(c, P.amber, 400, 146, 10, 4);
-    // gun rack
-    box(c, 168, 34, 120, 56, '#1a1428', P.m2, P.m0);
-    for (let y = 40; y < 88; y += 6) for (let x = 172; x < 286; x += 6) R(c, '#251d36', x, y, 1, 1);
-    for (let i = 0; i < 3; i++) { const y = 46 + i * 15; R(c, P.m3, 176, y, 2, 3); R(c, P.m3, 270, y, 2, 3); R(c, P.m2, 174, y + 3, 100, 1); }
-    // neon sign
-    box(c, 200, 110, 80, 18, P.m0, P.mag, P.mag); R(c, P.magL, 206, 116, 68, 2); R(c, P.magL, 206, 121, 40, 2);
-  });
-  single(scene, 'bg_training', 480, 270, c => {
-    R(c, '#08101a', 0, 0, 480, 270);
-    for (let x = 0; x <= 480; x += 24) R(c, '#0f2030', x, 0, 1, 270);
-    for (let y = 0; y <= 270; y += 24) R(c, '#0f2030', 0, y, 480, 1);
-    for (let i = 0; i < 6; i++) { box(c, 20 + i * 76, 20, 60, 70, '#0c1622', P.cyanD, '#05080d'); for (let y = 24; y < 88; y += 6) R(c, '#11303f', 24 + i * 76, y, 52, 1); }
-    R(c, P.cyanD, 0, 200, 480, 1); R(c, '#0a1520', 0, 201, 480, 69);
-  });
+  buildRooms(scene);
   Object.entries(WEAPON_ICONS).forEach(([k, fn]) => single(scene, 'w_' + k, 20, 11, fn));
   single(scene, 'heart', 9, 8, c => drawHeart(c, true));
   single(scene, 'heart_empty', 9, 8, c => drawHeart(c, false));
   single(scene, 'shield', 9, 9, drawShield);
   single(scene, 'lock', 9, 10, c => { ring(c, 4, 4, 2, 3, P.m4, -Math.PI, 0); R(c, P.m4, 1, 4, 1, 1); R(c, P.m4, 7, 4, 1, 1); box(c, 0, 4, 9, 6, P.m3, P.m4, P.m1); R(c, P.m0, 4, 6, 1, 2); });
   single(scene, 'check', 9, 8, c => { line(c, P.lime, 1, 4, 3, 6); line(c, P.lime, 3, 6, 7, 1); line(c, P.limeD, 1, 5, 3, 7); line(c, P.limeD, 3, 7, 7, 2); });
-  single(scene, 'cage', 40, 44, c => {
-    box(c, 0, 40, 40, 4, P.m2, P.m3, P.m1); box(c, 0, 0, 40, 4, P.m2, P.m3, P.m1);
-    for (let x = 2; x < 40; x += 6) { R(c, P.m3, x, 4, 2, 36); R(c, P.m4, x, 4, 1, 36); }
-    R(c, P.amber, 18, 1, 4, 2);
-  });
 }
 
 export function buildAnims(scene) {
@@ -531,7 +501,6 @@ export function buildAnims(scene) {
   mk('merc_wall', 'merc', [8], 1);
   mk('merc_hurt', 'merc', [9], 1);
   mk('drone_fly', 'drone', [0, 1], 14);
-  mk('buddy_fly', 'buddy', [0, 1], 14);
   mk('walker_walk', 'walker', [0, 1, 2, 3], 7);
   mk('turret_idle', 'turret', [0, 1], 2);
   mk('crawler_walk', 'crawler', [0, 1], 8);

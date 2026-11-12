@@ -42,7 +42,6 @@ class Mock extends Phaser.Scene {
     this.add.image(392, 100, 'e_bullet');
     [196, 206, 216].forEach((x, i) => this.add.sprite(x, 164 - (i === 1 ? 4 : 0), 'scrap', i));
     this.add.sprite(200, 100, 'crate', 1);
-    this.add.sprite(98, 140, 'buddy', 0);
     this.add.image(0, 0, 'vignette').setOrigin(0);
     // HUD
     for (let i = 0; i < 3; i++) this.add.image(8 + i * 10, 8, i < 2 ? 'heart' : 'heart_empty').setOrigin(0);
@@ -90,7 +89,6 @@ class Catalog extends Phaser.Scene {
     };
     section('HERO');
     item('merc', 'mercenary: idle / run / jump / fall / wall / hurt');
-    item('buddy', 'combat drone (temp upgrade)');
     section('ROBOTS');
     item('drone', 'scout drone'); item('walker', 'walker'); item('turret', 'turret'); item('crawler', 'crawler'); item('bomber', 'bomber');
     section('BOSSES (in runs)');
@@ -103,33 +101,75 @@ class Catalog extends Phaser.Scene {
     ['b_pistol', 'b_smg', 'b_pellet', 'b_arc', 'b_rail', 'grenade', 'slash', 'e_bullet', 'e_orb', 'e_bomb', 'e_shock'].forEach(k => item(k, k.replace('b_', '').replace('e_', 'enemy ')));
     item('boom', 'explosion'); item('smoke', 'smoke'); item('debris', 'debris');
     section('PICKUPS + UI');
-    item('scrap', 'bounty chip'); item('medkit', 'medkit'); item('crate', 'supply drop'); item('heart', 'health'); item('heart_empty', 'lost'); item('shield', 'temp armor'); item('lock', 'locked'); item('check', 'done'); item('cage', 'training cage');
+    item('scrap', 'bounty chip'); item('medkit', 'medkit'); item('crate', 'supply drop'); item('heart', 'health'); item('heart_empty', 'lost'); item('shield', 'temp armor'); item('lock', 'locked'); item('check', 'done');
     section('TILES + PROPS');
     item('tile_top', 'ground'); item('tile_fill', 'fill'); item('tile_tower', 'tower'); item('girder', 'girder'); item('spikes', 'shock spikes'); item('barrier', 'boss gate');
     item('sign_a', 'neon'); item('sign_b', 'neon'); item('sign_c', 'neon'); item('scrapheap', 'scrap heap'); item('storm', 'scrap storm');
   }
 }
 
-class Rooms extends Phaser.Scene {
-  constructor() { super('rooms'); }
+class Training extends Phaser.Scene {
+  constructor() { super('training'); }
   create() {
-    buildArt(this);
-    this.add.image(0, 0, 'bg_hideout').setOrigin(0).setScale(0.5);
-    ['w_rail','w_arc','w_launcher'].forEach((k,i)=>this.add.image(112, 22 + i * 7.5, k).setScale(0.5));
-    this.add.image(240, 0, 'bg_training').setOrigin(0).setScale(0.5);
-    this.add.image(240, 0, 'cage').setOrigin(0).setPosition(300, 60);
-    this.add.sprite(320, 82, 'walker', 0).setOrigin(0.5, 0.5);
-    this.add.text(4, 140, 'HIDEOUT (menu backdrop)', { fontFamily: FONT_B, fontSize: '8px', color: '#fff' });
-    this.add.text(244, 140, 'TRAINING ROOM', { fontFamily: FONT_B, fontSize: '8px', color: '#fff' });
+    buildArt(this); buildAnims(this);
+    this.add.image(0, 0, 'bg_training').setOrigin(0);
+    const glow = (x, y, c, s, a = 0.5) => this.add.image(x, y, 'glow').setTint(c).setBlendMode('ADD').setScale(s).setAlpha(a);
+    [60, 240, 420].forEach(x => glow(x, 26, 0x6ef0ff, 1.2, 0.8));
+    glow(240, 36, 0x3df5ff, 3, 0.25);
+    // in-game specimen pods (shown in the training menu): owned ones lit, locked ones dark
+    const specimen = (x, key, frame, owned) => {
+      this.add.image(x, 120, 'pod_back').setAlpha(owned ? 1 : 0.6);
+      const sp = this.add.sprite(x, 118, key, frame).setTint(owned ? 0xffffff : 0x111a22);
+      this.add.image(x, 120, 'pod_front');
+      if (!owned) this.add.image(x, 118, 'lock');
+    };
+    // arena action: the hero practicing against a captured walker
+    this.add.sprite(120, 224, 'merc', 2).setOrigin(0.5, 1);
+    this.add.image(146, 211, 'b_pistol'); glow(146, 211, 0xffb03d, 0.5);
+    this.add.sprite(370, 224, 'walker', 1).setOrigin(0.5, 1).setFlipX(true);
+    this.add.image(0, 0, 'vignette').setOrigin(0);
+  }
+}
+
+class MenuMock extends Phaser.Scene {
+  constructor() { super('menu'); }
+  create() {
+    buildArt(this); buildAnims(this);
+    this.add.image(0, 0, 'bg_sky').setOrigin(0);
+    this.add.tileSprite(0, 80, 480, 190, 'bg_far').setOrigin(0).setTilePosition(20, 0);
+    this.add.tileSprite(0, 100, 480, 170, 'bg_mid').setOrigin(0).setTilePosition(260, 0);
+    this.add.tileSprite(0, 170, 480, 60, 'fog').setOrigin(0);
+    const glow = (x, y, c, s, a = 0.6) => this.add.image(x, y, 'glow').setTint(c).setBlendMode('ADD').setScale(s).setAlpha(a);
+    // rooftop
+    const RX = 250, RY = 206;
+    this.add.image(RX + 110, RY - 40, 'billboard').setOrigin(0.5, 1); glow(RX + 110, RY - 66, 0xff3d8b, 3.2, 0.35);
+    this.add.image(RX + 200, RY, 'antenna').setOrigin(0.5, 1); glow(RX + 200, RY - 67, 0xff4a3d, 0.5, 0.9);
+    this.add.image(RX + 30, RY, 'water_tank').setOrigin(0.5, 1);
+    this.add.tileSprite(RX, RY, 480 - RX, 16, 'tile_top').setOrigin(0);
+    this.add.tileSprite(RX, RY + 16, 480 - RX, 270 - RY - 16, 'tile_tower').setOrigin(0);
+    this.add.tileSprite(RX, RY - 12, 480 - RX, 12, 'railing').setOrigin(0).setAlpha(0.9);
+    this.add.image(RX + 160, RY, 'ac_unit').setOrigin(0.5, 1);
+    this.add.image(RX + 214, RY, 'vent_pipe').setOrigin(0.5, 1);
+    [20, 40, 60].forEach((dy, i) => this.add.image(RX + 214 + i * 2, RY - 30 - dy * 0.6, 'smoke').setAlpha(0.35 - i * 0.1).setScale(1 + i * 0.4));
+    this.add.sprite(RX + 76, RY, 'merc', 0).setOrigin(0.5, 1);
+    this.add.image(0, 0, 'vignette').setOrigin(0);
+    // title + menu (layout sketch)
+    const t = this.add.text(24, 40, 'SCRAPLINE', { fontFamily: FONT_H, fontSize: '24px', color: '#ffffff' });
+    t.setShadow(0, 0, '#ff3d8b', 8, false, true); t.setStroke('#a3195a', 4);
+    this.add.text(26, 72, 'BOUNTY HUNTER OF THE WASTES', { fontFamily: FONT_B, fontSize: '8px', color: PAL.amberL });
+    ['> START RUN', '  TRAINING ROOM', '  MINI-BOSS ARENA', '  ACHIEVEMENTS', '  LEADERBOARD'].forEach((s, i) =>
+      this.add.text(26, 110 + i * 14, s, { fontFamily: FONT_B, fontSize: '8px', color: i ? PAL.m5 : PAL.cyan }));
+    this.add.sprite(26, 190, 'scrap', 0).setOrigin(0);
+    this.add.text(36, 190, '1,240 BOUNTY', { fontFamily: FONT_B, fontSize: '8px', color: PAL.amberL });
   }
 }
 
 loadFonts().then(() => {
-  const sizes = { mock: [480, 270, 3], catalog: [640, 840, 2], rooms: [480, 152, 3] };
+  const sizes = { mock: [480, 270, 3], catalog: [640, 840, 2], training: [480, 270, 3], menu: [480, 270, 3] };
   const [w, h, zoom] = sizes[view];
   new Phaser.Game({
     type: Phaser.CANVAS, parent: 'g', width: w, height: h, zoom, pixelArt: true,
-    backgroundColor: '#05030a', scene: view === 'mock' ? Mock : view === 'rooms' ? Rooms : Catalog,
+    backgroundColor: '#05030a', scene: { mock: Mock, catalog: Catalog, training: Training, menu: MenuMock }[view],
     callbacks: { postBoot: () => setTimeout(() => { window.__ready = true; }, 400) },
   });
 });
