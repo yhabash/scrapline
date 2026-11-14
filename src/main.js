@@ -1,50 +1,32 @@
-import Phaser from 'phaser';
-import { loadFonts } from './fonts.js';
-import Boot from './scenes/Boot.js';
-import Menu from './scenes/Menu.js';
-import Loadout from './scenes/Loadout.js';
-import Run from './scenes/Run.js';
-import Pause from './scenes/Pause.js';
-import GameOver from './scenes/GameOver.js';
-import Training from './scenes/Training.js';
-import Arena from './scenes/Arena.js';
-import Achievements from './scenes/Achievements.js';
-import Leaderboard from './scenes/Leaderboard.js';
-import Settings from './scenes/Settings.js';
-import { unlockAudio, suspendForHidden, toggleMute } from './audio.js';
-import { W, isPhone } from './view.js';
+// Entry point. Desktop starts the game straight away. Phones first show a TAP TO START screen:
+// that tap is the user gesture browsers require before a page may go full screen (Android) and
+// play sound. The game is loaded after the switch, so it sizes itself to the full screen.
+// iPhone Safari does not let websites go full screen, so it shows how to add the game to the
+// home screen instead; opened from there, the game is full screen and skips this screen.
+import './fonts.js';
+import { unlockAudio } from './audio.js';
 
-// Phones: go full screen and lock to landscape on the first tap (where the browser allows it).
-if (isPhone) {
-  const goFull = () => {
-    const el = document.documentElement;
-    if (!document.fullscreenElement && el.requestFullscreen) {
-      el.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
-    }
-  };
-  window.addEventListener('touchend', goFull, { passive: true });
+const phone = (window.matchMedia?.('(pointer: coarse)').matches || (navigator.maxTouchPoints || 0) > 1) &&
+  Math.min(screen.width, screen.height) < 820;
+const standalone = window.matchMedia?.('(display-mode: fullscreen)').matches ||
+  window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+const el = document.documentElement;
+const canFull = !!el.requestFullscreen;
+
+let started = false;
+const start = () => { if (started) return; started = true; document.getElementById('tapstart')?.remove(); import('./game.js'); };
+
+if (!phone || standalone) start();
+else {
+  const box = document.getElementById('tapstart');
+  if (!canFull) box.querySelector('.tip').hidden = false;
+  box.hidden = false;
+  box.addEventListener('click', () => {
+    unlockAudio();
+    if (!canFull) return start();
+    el.requestFullscreen({ navigationUI: 'hide' })
+      .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
+      .catch(() => {})
+      .finally(() => setTimeout(start, 120)); // let the screen settle at its new size
+  }, { once: true });
 }
-
-// Browsers only allow sound after a user gesture, so start audio on the first tap, click or key.
-['pointerdown', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, unlockAudio, { passive: true }));
-document.addEventListener('visibilitychange', () => suspendForHidden(document.hidden));
-window.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyM' && !(document.activeElement && document.activeElement.tagName === 'INPUT')) toggleMute();
-});
-
-loadFonts().then(() => {
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent: 'game',
-    width: W,
-    height: 270,
-    pixelArt: true,
-    backgroundColor: '#05030a',
-    physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 900 }, debug: false } },
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    input: { activePointers: 5 },
-    dom: { createContainer: true },
-    scene: [Boot, Menu, Loadout, Run, Pause, GameOver, Training, Arena, Achievements, Leaderboard, Settings],
-  });
-  window.__game = game;
-});

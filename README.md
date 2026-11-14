@@ -21,8 +21,8 @@ A 16-bit cyberpunk endless runner. You're a mercenary hunting robots for bounty 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
 | Move | A / D or arrows | Slide a thumb on the left side |
-| Jump / double jump / wall jump | Space, W or Up | JUMP |
-| Fire | J, X or mouse click | FIRE |
+| Jump / double jump / wall jump | Space, W or Up | Flick the left thumb up |
+| Fire | J, X or mouse click | Hold anywhere on the right side |
 | Pause | Esc or P | Pause button |
 | Mute | M | Settings or pause menu |
 

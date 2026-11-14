@@ -21,10 +21,23 @@
     #rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #05030a; color: #3df5ff;
       font: 12px/1.6 monospace; align-items: center; justify-content: center; text-align: center; letter-spacing: 2px; }
     @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+    #tapstart { position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: radial-gradient(ellipse at 50% 60%, #2a0f3d 0%, #05030a 70%); color: #fff; font: 12px/1.6 'Silkscreen', monospace; text-align: center; cursor: pointer; }
+    #tapstart[hidden] { display: none; }
+    #tapstart .logo { font-family: 'Press Start 2P', monospace; font-size: 26px; letter-spacing: 6px; color: #ff3df0; text-shadow: 0 0 12px #ff3df0aa; font-weight: bold; }
+    #tapstart .go { font-size: 16px; letter-spacing: 4px; color: #3df5ff; animation: blink 1.1s steps(2) infinite; }
+    #tapstart .tip { max-width: 34em; color: #c9c5e3; font-size: 11px; padding: 0 16px; }
+    #tapstart .tip b { color: #ffb03d; }
+    @keyframes blink { 50% { opacity: .25; } }
   </style>
 </head>
 <body>
   <div id="game"></div>
+  <div id="tapstart" hidden>
+    <div class="logo">SCRAPLINE</div>
+    <div class="go">TAP TO START</div>
+    <div class="tip" hidden>For full screen: tap <b>Share</b>, then <b>Add to Home Screen</b>, and play from the new icon.</div>
+  </div>
   <div id="rotate">ROTATE YOUR DEVICE<br/>TO PLAY SCRAPLINE</div>
   <script type="module" src="/src/main.js"></script>
 </body>
