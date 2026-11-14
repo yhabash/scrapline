@@ -1,6 +1,6 @@
 // Game data: weapons, enemies, bosses, specimens, achievements, supply drops, and the save file.
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 
 export const WEAPONS = {
   pistol: { name: 'Scrap Pistol', desc: 'Reliable sidearm. Steady fire.', rate: 260, dmg: 1, speed: 440, spread: 2, pellets: 1, tex: 'b_pistol', life: 900, unlock: 'Starting weapon' },
@@ -35,7 +35,7 @@ export const SUPPLY_EVERY = 220; // meters between supply drops
 
 export const MINIBOSSES = [
   // level sets speed and attack rate (like a run boss Mk-level); hp is fixed. All enrage at half health.
-  { id: 'sawjaw', desc: 'A chainsaw-jawed scrap hound.', reward: 'scatter', bounty: 300, req: null, level: 3, hp: 95 },
+  { id: 'sawjaw', desc: 'A chainsaw-jawed scrap hound.', reward: 'scatter', bounty: 300, req: null, level: 3, hp: 76 },
   { id: 'warden', desc: 'Teleporting coil sentinel.', reward: 'arc', bounty: 400, req: 'sawjaw', level: 4, hp: 135 },
   { id: 'ronin', desc: 'Blade-master of the undercity.', reward: 'disc', bounty: 500, req: 'warden', level: 5, hp: 175 },
 ];
@@ -62,15 +62,17 @@ export const SUPPLIES = [
   { id: 'magnet', name: 'SCRAP MAGNET', desc: 'Pull in bounty chips', color: 0xffe4a8 },
 ];
 
+// goal + prog(save) drive the progress bars in the Achievements menu.
+// "run" marks goals that must be reached in a single run (progress shows your best run).
 export const ACHIEVEMENTS = [
-  { id: 'first_blood', name: 'First Blood', desc: 'Destroy your first robot', reward: { bounty: 50 }, check: (s) => s.stats.kills >= 1 },
-  { id: 'scrapper', name: 'Scrapper', desc: 'Destroy 150 robots in total', reward: { weapon: 'smg' }, check: (s) => s.stats.kills >= 150 },
-  { id: 'demolisher', name: 'Demolisher', desc: 'Destroy 60 robots in one run', reward: { weapon: 'launcher' }, check: (s, r) => r && r.mode === 'run' && r.kills >= 60 },
-  { id: 'bounty_hunter', name: 'Bounty Hunter', desc: 'Defeat a boss during a run', reward: { bounty: 250 }, check: (s) => s.stats.bosses >= 1 },
-  { id: 'titan_breaker', name: 'Titan Breaker', desc: 'Defeat 3 bosses in one run', reward: { weapon: 'rail' }, check: (s, r) => r && r.mode === 'run' && r.bosses >= 3 },
-  { id: 'long_haul', name: 'Long Haul', desc: 'Travel 1500m in one run', reward: { bounty: 400 }, check: (s, r) => r && r.mode === 'run' && r.distance >= 1500 },
-  { id: 'high_roller', name: 'High Roller', desc: 'Score 15,000 in one run', reward: { bounty: 600 }, check: (s, r) => r && r.mode === 'run' && r.score >= 15000 },
-  { id: 'untouchable', name: 'Untouchable', desc: 'Beat a run boss without getting hit', reward: { bounty: 500 }, check: (s, r) => r && r.mode === 'run' && r.flawless },
+  { id: 'first_blood', name: 'First Blood', desc: 'Destroy your first robot', reward: { bounty: 50 }, goal: 1, prog: (s) => s.stats.kills, check: (s) => s.stats.kills >= 1 },
+  { id: 'scrapper', name: 'Scrapper', desc: 'Destroy 150 robots in total', reward: { weapon: 'smg' }, goal: 150, prog: (s) => s.stats.kills, check: (s) => s.stats.kills >= 150 },
+  { id: 'demolisher', name: 'Demolisher', desc: 'Destroy 60 robots in one run', reward: { weapon: 'launcher' }, goal: 60, run: true, prog: (s) => s.stats.bestKills, check: (s, r) => r && r.mode === 'run' && r.kills >= 60 },
+  { id: 'bounty_hunter', name: 'Bounty Hunter', desc: 'Defeat a boss during a run', reward: { bounty: 250 }, goal: 1, prog: (s) => s.stats.bosses, check: (s) => s.stats.bosses >= 1 },
+  { id: 'titan_breaker', name: 'Titan Breaker', desc: 'Defeat 3 bosses in one run', reward: { weapon: 'rail' }, goal: 3, run: true, prog: (s) => s.stats.bestBosses, check: (s, r) => r && r.mode === 'run' && r.bosses >= 3 },
+  { id: 'long_haul', name: 'Long Haul', desc: 'Travel 1500m in one run', reward: { bounty: 400 }, goal: 1500, run: true, unit: 'm', prog: (s) => s.stats.bestDistance, check: (s, r) => r && r.mode === 'run' && r.distance >= 1500 },
+  { id: 'high_roller', name: 'High Roller', desc: 'Score 15,000 in one run', reward: { bounty: 600 }, goal: 15000, run: true, prog: (s) => s.stats.bestScore, check: (s, r) => r && r.mode === 'run' && r.score >= 15000 },
+  { id: 'untouchable', name: 'Untouchable', desc: 'Beat a run boss without getting hit', reward: { bounty: 500 }, goal: 1, prog: () => 0, check: (s, r) => r && r.mode === 'run' && r.flawless },
 ];
 
 // ---------- save file ----------
@@ -78,7 +80,7 @@ const KEY = 'scrapline_save_v1';
 export function defaultSave() {
   return {
     bounty: 0, weapons: ['pistol'], equipped: 'pistol', specimens: {}, achievements: {}, mini: {},
-    stats: { kills: 0, bosses: 0, runs: 0, bestScore: 0, bestDistance: 0 },
+    stats: { kills: 0, bosses: 0, runs: 0, bestScore: 0, bestDistance: 0, bestKills: 0, bestBosses: 0 },
   };
 }
 export function loadSave() {
@@ -104,6 +106,8 @@ export function applyResults(save, r) {
     save.stats.bosses += r.bosses;
     save.stats.bestScore = Math.max(save.stats.bestScore, r.score);
     save.stats.bestDistance = Math.max(save.stats.bestDistance, r.distance);
+    save.stats.bestKills = Math.max(save.stats.bestKills || 0, r.kills);
+    save.stats.bestBosses = Math.max(save.stats.bestBosses || 0, r.bosses);
   }
   const earned = [];
   for (const a of ACHIEVEMENTS) {
