@@ -88,7 +88,10 @@ function plausible(e) {
   return e.score <= e.distance * 14 + bossPts + 3000;
 }
 const int = (v) => (Number.isFinite(Number(v)) ? Math.floor(Number(v)) : -1);
-const json = (data, status = 200, headers = {}) => Response.json(data, { status, headers: { 'cache-control': 'no-store', ...headers } });
+const json = (data, status = 200, headers = {}) => {
+  if (status >= 400) console.warn('leaderboard rejected', status, data.error); // reason only, no player data
+  return Response.json(data, { status, headers: { 'cache-control': 'no-store', ...headers } });
+};
 
 export default {
   async fetch(request) {
@@ -118,11 +121,12 @@ export default {
         weapon: WEAPONS.includes(body.weapon) ? body.weapon : 'pistol', at: now,
       };
       if ([entry.score, entry.distance, entry.kills, entry.bosses].some(v => v < 0) || entry.score === 0) return json({ error: 'Invalid run.' }, 400);
-      if (!plausible(entry)) return json({ error: 'That run does not add up.' }, 400);
+      if (!plausible(entry)) { console.warn('implausible run', { score: entry.score, distance: entry.distance, kills: entry.kills, bosses: entry.bosses }); return json({ error: 'That run does not add up.' }, 400); }
       recent.set(ip, now);
       if (recent.size > 5000) recent.clear();
 
       const [all, week] = await Promise.all([submitTo('all', entry), submitTo('week', entry)]);
+      console.log('leaderboard saved', { score: entry.score, allRank: all.rank, weekRank: week.rank });
       return json({ id: entry.id, name, week: weekKey(), all, weekly: week });
     } catch (e) {
       console.error('leaderboard error', e);
