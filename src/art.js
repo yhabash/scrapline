@@ -1,5 +1,6 @@
 // All Scrapline graphics are drawn here, pixel by pixel, into canvas textures.
 import { buildRooms } from './art_rooms.js';
+import { W as VW } from './view.js';
 // Nothing is loaded from image files.
 
 export const PAL = {
@@ -378,6 +379,7 @@ const WEAPON_ICONS = {
   scatter: (c) => { R(c, P.rust1, 1, 4, 6, 3); R(c, P.m3, 7, 3, 12, 2); R(c, P.m2, 7, 5, 10, 2); R(c, P.m4, 7, 3, 12, 1); R(c, P.amber, 11, 5, 3, 1); },
   arc: (c) => { R(c, P.m2, 1, 4, 18, 3); R(c, P.m3, 1, 4, 18, 1); R(c, P.cyan, 4, 5, 12, 1); R(c, P.m1, 4, 7, 3, 3); R(c, P.cyanL, 18, 4, 1, 3); },
   blade: (c) => { R(c, P.rust1, 2, 5, 5, 2); R(c, P.m3, 7, 4, 1, 4); line(c, P.mag, 8, 5, 19, 5); line(c, P.magL, 8, 6, 18, 6); },
+  disc: (c) => { R(c, P.m2, 2, 4, 9, 4); R(c, P.m3, 2, 4, 9, 1); R(c, P.m1, 4, 8, 3, 3); disc(c, 14, 5, 4, P.m3); disc(c, 14, 5, 3, P.amber); disc(c, 14, 5, 1, P.m1); R(c, P.amberL, 13, 1, 2, 1); R(c, P.amberL, 18, 4, 1, 2); R(c, P.amberL, 10, 6, 1, 2); },
   launcher: (c) => { R(c, P.m2, 2, 3, 14, 5); R(c, P.m3, 2, 3, 14, 1); disc(c, 8, 5, 2, P.m1); R(c, P.lime, 15, 4, 3, 3); R(c, P.m1, 4, 8, 3, 3); },
   rail: (c) => { R(c, P.m1, 0, 4, 20, 3); R(c, P.m4, 0, 4, 20, 1); for (let x = 3; x < 18; x += 3) R(c, P.mag, x, 5, 1, 1); R(c, P.m2, 3, 7, 4, 3); },
 };
@@ -404,6 +406,7 @@ export function buildArt(scene) {
   single(scene, 'b_pellet', 3, 3, c => { R(c, P.amber, 0, 0, 3, 3); R(c, P.amberL, 1, 1, 1, 1); });
   single(scene, 'b_arc', 14, 3, c => { R(c, P.cyanD, 0, 1, 4, 1); R(c, P.cyan, 3, 0, 11, 3); R(c, P.cyanL, 5, 1, 9, 1); });
   single(scene, 'b_rail', 24, 3, c => { R(c, P.magD, 0, 1, 6, 1); R(c, P.mag, 5, 0, 19, 3); R(c, P.white, 7, 1, 17, 1); });
+  single(scene, 'b_disc', 9, 9, c => { disc(c, 4, 4, 4, P.amberD); disc(c, 4, 4, 3, P.amber); R(c, P.amberL, 3, 0, 3, 1); R(c, P.amberL, 8, 3, 1, 3); R(c, P.amberL, 3, 8, 3, 1); R(c, P.amberL, 0, 3, 1, 3); disc(c, 4, 4, 1, P.m1); R(c, P.white, 2, 2, 1, 1); });
   single(scene, 'grenade', 6, 6, c => { disc(c, 3, 3, 2, P.limeD); R(c, P.lime, 2, 2, 2, 1); R(c, P.m3, 2, 0, 2, 1); });
   single(scene, 'slash', 30, 30, c => { ring(c, 2, 15, 18, 22, P.magD, -1.2, 1.2); ring(c, 2, 15, 19, 21, P.mag, -1.1, 1.1); ring(c, 2, 15, 20, 20, P.magL, -0.9, 0.9); });
   // enemy projectiles
@@ -471,15 +474,15 @@ export function buildArt(scene) {
   });
 
   // big backgrounds
-  single(scene, 'bg_sky', 480, 270, c => drawSky(c, 480, 270));
+  single(scene, 'bg_sky', VW, 270, c => drawSky(c, VW, 270));
   single(scene, 'bg_far', 512, 190, c => drawSkyline(c, 512, 190, 11, ['#2a1038', '#3d1a4e'], true, 60, 170));
   single(scene, 'bg_mid', 512, 170, c => drawMid(c, 512, 170));
   single(scene, 'fog', 16, 60, c => { for (let y = 0; y < 60; y++) { c.fillStyle = `rgba(150,50,90,${(y / 60) * 0.28})`; c.fillRect(0, y, 16, 1); } });
-  single(scene, 'vignette', 480, 270, c => {
-    const g = c.createRadialGradient(240, 135, 110, 240, 135, 300);
+  single(scene, 'vignette', VW, 270, c => {
+    const g = c.createRadialGradient(VW / 2, 135, 110, VW / 2, 135, 300 + (VW - 480) / 2);
     g.addColorStop(0, 'rgba(5,3,10,0)'); g.addColorStop(1, 'rgba(5,3,10,0.65)');
-    c.fillStyle = g; c.fillRect(0, 0, 480, 270);
-    c.fillStyle = 'rgba(0,0,0,0.07)'; for (let y = 0; y < 270; y += 2) c.fillRect(0, y, 480, 1);
+    c.fillStyle = g; c.fillRect(0, 0, VW, 270);
+    c.fillStyle = 'rgba(0,0,0,0.07)'; for (let y = 0; y < 270; y += 2) c.fillRect(0, y, VW, 1);
   });
   buildRooms(scene);
   Object.entries(WEAPON_ICONS).forEach(([k, fn]) => single(scene, 'w_' + k, 20, 11, fn));

@@ -1,7 +1,9 @@
 import { playMusic, sfx } from '../audio.js';
 // Training room: buy captured specimens with bounty, then practice against them anytime.
 import Phaser from 'phaser';
-import { W, H, txt, panel, Button, FocusNav, COL, fmt, glow } from '../ui.js';
+import { H, centerLayout, roomSides, txt, panel, Button, FocusNav, COL, fmt, glow } from '../ui.js';
+
+const W = 480; // laid out at 480 wide, centred with centerLayout()
 import { SPECIMENS, ENEMIES, BOSSES, loadSave, writeSave } from '../data.js';
 import { transitionTo } from './rooftop.js';
 
@@ -21,8 +23,10 @@ export default class Training extends Phaser.Scene {
   init(data) { this.result = data?.result || null; }
 
   create() {
+    centerLayout(this);
     this._leaving = false;
     this.save = loadSave();
+    roomSides(this);
     this.add.image(0, 0, 'bg_training').setOrigin(0);
     playMusic('menu');
     [60, 240, 420].forEach(x => glow(this, x, 26, 0x6ef0ff, 1.2, 0.8));

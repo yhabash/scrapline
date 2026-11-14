@@ -1,17 +1,17 @@
 // Game data: weapons, enemies, bosses, specimens, achievements, supply drops, and the save file.
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 export const WEAPONS = {
   pistol: { name: 'Scrap Pistol', desc: 'Reliable sidearm. Steady fire.', rate: 260, dmg: 1, speed: 440, spread: 2, pellets: 1, tex: 'b_pistol', life: 900, unlock: 'Starting weapon' },
-  smg: { name: 'Pulse SMG', desc: 'Sprays light rounds fast.', rate: 90, dmg: 0.42, speed: 480, spread: 7, pellets: 1, tex: 'b_smg', life: 700, unlock: 'Achievement: Scrapper' },
+  smg: { name: 'Pulse SMG', desc: 'Sprays light rounds fast.', rate: 90, dmg: 0.525, speed: 480, spread: 7, pellets: 1, tex: 'b_smg', life: 700, unlock: 'Achievement: Scrapper' },
   scatter: { name: 'Scattergun', desc: 'Five pellets. Brutal up close.', rate: 640, dmg: 0.8, speed: 400, spread: 24, pellets: 5, tex: 'b_pellet', life: 320, unlock: 'Defeat mini-boss SAWJAW' },
   arc: { name: 'Arc Rifle', desc: 'Energy bolts pierce through bots.', rate: 380, dmg: 1.3, speed: 620, spread: 0, pellets: 1, pierce: true, tex: 'b_arc', life: 800, unlock: 'Defeat mini-boss TESLA WARDEN' },
-  blade: { name: 'Plasma Blade', desc: 'Melee arc. Cuts bullets apart.', rate: 300, dmg: 2.6, melee: true, unlock: 'Defeat mini-boss GUTTER RONIN' },
-  launcher: { name: 'Grenade Launcher', desc: 'Arcing explosives. Area damage.', rate: 720, dmg: 3, grenade: true, radius: 38, unlock: 'Achievement: Wall Runner' },
+  disc: { name: 'Ricochet Disc', desc: 'Saw discs bounce off walls and floors.', rate: 430, dmg: 1.7, speed: 360, spread: 0, pellets: 1, disc: true, bounces: 4, tex: 'b_disc', life: 1500, unlock: 'Defeat mini-boss GUTTER RONIN' },
+  launcher: { name: 'Grenade Launcher', desc: 'Arcing explosives. Area damage.', rate: 720, dmg: 3, grenade: true, radius: 38, unlock: 'Achievement: Demolisher' },
   rail: { name: 'Rail Lance', desc: 'Slow, devastating piercing shot.', rate: 950, dmg: 6, speed: 950, spread: 0, pellets: 1, pierce: true, tex: 'b_rail', life: 600, unlock: 'Achievement: Titan Breaker' },
 };
-export const WEAPON_ORDER = ['pistol', 'smg', 'scatter', 'arc', 'blade', 'launcher', 'rail'];
+export const WEAPON_ORDER = ['pistol', 'smg', 'scatter', 'arc', 'disc', 'launcher', 'rail'];
 
 export const ENEMIES = {
   drone: { name: 'Scout Drone', hp: 2, points: 25, bounty: 6, flying: true },
@@ -34,9 +34,10 @@ export const BOSS_EVERY = 500; // meters between boss fights
 export const SUPPLY_EVERY = 220; // meters between supply drops
 
 export const MINIBOSSES = [
-  { id: 'sawjaw', desc: 'A chainsaw-jawed scrap hound.', reward: 'scatter', bounty: 300, req: null },
-  { id: 'warden', desc: 'Teleporting coil sentinel.', reward: 'arc', bounty: 400, req: 'sawjaw' },
-  { id: 'ronin', desc: 'Blade-master of the undercity.', reward: 'blade', bounty: 500, req: 'warden' },
+  // level sets speed and attack rate (like a run boss Mk-level); hp is fixed. All enrage at half health.
+  { id: 'sawjaw', desc: 'A chainsaw-jawed scrap hound.', reward: 'scatter', bounty: 300, req: null, level: 3, hp: 95 },
+  { id: 'warden', desc: 'Teleporting coil sentinel.', reward: 'arc', bounty: 400, req: 'sawjaw', level: 4, hp: 135 },
+  { id: 'ronin', desc: 'Blade-master of the undercity.', reward: 'disc', bounty: 500, req: 'warden', level: 5, hp: 175 },
 ];
 
 // Training room: captured specimens. Buy once, practice forever.
@@ -64,7 +65,7 @@ export const SUPPLIES = [
 export const ACHIEVEMENTS = [
   { id: 'first_blood', name: 'First Blood', desc: 'Destroy your first robot', reward: { bounty: 50 }, check: (s) => s.stats.kills >= 1 },
   { id: 'scrapper', name: 'Scrapper', desc: 'Destroy 150 robots in total', reward: { weapon: 'smg' }, check: (s) => s.stats.kills >= 150 },
-  { id: 'wallrunner', name: 'Wall Runner', desc: 'Wall-jump 25 times in one run', reward: { weapon: 'launcher' }, check: (s, r) => r && r.mode === 'run' && r.wallJumps >= 25 },
+  { id: 'demolisher', name: 'Demolisher', desc: 'Destroy 60 robots in one run', reward: { weapon: 'launcher' }, check: (s, r) => r && r.mode === 'run' && r.kills >= 60 },
   { id: 'bounty_hunter', name: 'Bounty Hunter', desc: 'Defeat a boss during a run', reward: { bounty: 250 }, check: (s) => s.stats.bosses >= 1 },
   { id: 'titan_breaker', name: 'Titan Breaker', desc: 'Defeat 3 bosses in one run', reward: { weapon: 'rail' }, check: (s, r) => r && r.mode === 'run' && r.bosses >= 3 },
   { id: 'long_haul', name: 'Long Haul', desc: 'Travel 1500m in one run', reward: { bounty: 400 }, check: (s, r) => r && r.mode === 'run' && r.distance >= 1500 },
@@ -85,7 +86,11 @@ export function loadSave() {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
     const d = defaultSave();
     if (!raw) return d;
-    return { ...d, ...raw, stats: { ...d.stats, ...(raw.stats || {}) } };
+    const s = { ...d, ...raw, stats: { ...d.stats, ...(raw.stats || {}) } };
+    // v0.3: the Plasma Blade became the Ricochet Disc
+    s.weapons = [...new Set(s.weapons.map(w => (w === 'blade' ? 'disc' : w)))];
+    if (s.equipped === 'blade') s.equipped = 'disc';
+    return s;
   } catch (e) { return defaultSave(); }
 }
 export function writeSave(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* storage unavailable */ } }

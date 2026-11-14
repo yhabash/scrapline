@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><script type="module">
+import { Music, SONGS } from './src/music.js';
+window.SONGS = SONGS;
+window.renderSong = async (name) => {
+  const sr = 44100, S = SONGS[name];
+  // length: whole form + 2.5s tail
+  const probe = new OfflineAudioContext(2, sr, sr);
+  const pm = new Music(probe, probe.destination); const len = pm.renderOnce(name) + 2.5;
+  const ctx = new OfflineAudioContext(2, Math.ceil(sr * len), sr);
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
+  const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.08;
+  const master = ctx.createGain(); master.gain.value = 2.4 * 0.6 * 0.8;
+  master.connect(comp); comp.connect(lim); lim.connect(ctx.destination);
+  const m = new Music(ctx, master); m.renderOnce(name);
+  const buf = await ctx.startRendering();
+  const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length;
+  const out = new Int16Array(n * 2);
+  for (let i = 0; i < n; i++) { out[2*i] = Math.max(-1, Math.min(1, L[i])) * 32767; out[2*i+1] = Math.max(-1, Math.min(1, R[i])) * 32767; }
+  window.__pcm = new Uint8Array(out.buffer);
+  return { len, bytes: window.__pcm.length };
+};
+window.chunk = (i, size) => { const a = window.__pcm.subarray(i, i + size); let s = ''; for (let j = 0; j < a.length; j += 8192) s += String.fromCharCode.apply(null, a.subarray(j, j + 8192)); return btoa(s); };
+window.ready = true;
+</script>

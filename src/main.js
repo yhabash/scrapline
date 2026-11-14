@@ -12,6 +12,18 @@ import Achievements from './scenes/Achievements.js';
 import Leaderboard from './scenes/Leaderboard.js';
 import Settings from './scenes/Settings.js';
 import { unlockAudio, suspendForHidden, toggleMute } from './audio.js';
+import { W, isPhone } from './view.js';
+
+// Phones: go full screen and lock to landscape on the first tap (where the browser allows it).
+if (isPhone) {
+  const goFull = () => {
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) {
+      el.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
+    }
+  };
+  window.addEventListener('touchend', goFull, { passive: true });
+}
 
 // Browsers only allow sound after a user gesture, so start audio on the first tap, click or key.
 ['pointerdown', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, unlockAudio, { passive: true }));
@@ -24,13 +36,13 @@ loadFonts().then(() => {
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
-    width: 480,
+    width: W,
     height: 270,
     pixelArt: true,
     backgroundColor: '#05030a',
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 900 }, debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    input: { activePointers: 4 },
+    input: { activePointers: 5 },
     dom: { createContainer: true },
     scene: [Boot, Menu, Loadout, Run, Pause, GameOver, Training, Arena, Achievements, Leaderboard, Settings],
   });

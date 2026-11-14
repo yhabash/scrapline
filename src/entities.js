@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ENEMIES, BOSSES } from './data.js';
+import { ENEMIES, BOSSES, MINIBOSSES } from './data.js';
 import { sfx } from './audio.js';
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
@@ -176,6 +176,10 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.cdMul = Math.max(0.45, 1 - 0.09 * (tier - 1));
     this.extra = Math.floor((tier - 1) / 2);
     this.displayName = cfg.name + (showMk ? ' MK-' + roman(tier) : '');
+    // arena mini-bosses: fixed health, and they enrage at half health
+    this.mini = scene.mode === 'arena' ? MINIBOSSES.find(m => m.id === id) : null;
+    if (this.mini) this.hp = this.hpMax = this.mini.hp;
+    this.enraged = false;
     this.points = cfg.points * tier; this.bountyVal = cfg.bounty * tier;
     const [bw, bh, ox, oy] = cfg.body;
     this.body.setSize(bw, bh).setOffset(ox, oy);
@@ -217,7 +221,13 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     } else if (this.state === 'act') {
       this.actUpdate?.(dt, p);
       if (this.timer <= 0) {
-        this.state = 'idle'; this.timer = 1100 * this.cdMul + Math.random() * 400; this.actUpdate = null;
+        this.actUpdate = null;
+        if (this.enraged && Math.random() < 0.5) {
+          // chain straight into another attack with a short warning
+          const pats = this.cfg.patterns.filter(x => x !== this.last);
+          this.pattern = Phaser.Utils.Array.GetRandom(pats); this.last = this.pattern;
+          this.state = 'tele'; this.timer = 300;
+        } else { this.state = 'idle'; this.timer = (this.mini ? 850 : 1100) * this.cdMul + Math.random() * 400; }
         if (this.cfg.flying) b.setVelocity(0, 0); else b.setVelocityX(0);
       }
     }
@@ -228,9 +238,20 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   hurt(d) {
     if (this.dying || this.state === 'intro') return;
     this.hp -= d;
+    if (this.mini && !this.enraged && this.hp > 0 && this.hp <= this.hpMax / 2) this.enrage();
     this.setTintFill(0xffffff);
     this.scene.time.delayedCall(50, () => { if (this.active && !this.dying) this.clearTint(); });
     if (this.hp <= 0) { this.dying = true; this.body.setVelocity(0, 0); this.body.setAllowGravity(false); this.scene.onBossKilled(this); }
+  }
+  enrage() {
+    this.enraged = true;
+    this.cdMul *= 0.62; this.spd *= 1.18; this.extra += 1;
+    this.setTint(0xff3d3d);
+    this.scene.time.delayedCall(400, () => { if (this.active && !this.dying) this.clearTint(); });
+    this.scene.cameras.main.shake(300, 0.012);
+    sfx('warning');
+    this.scene.banner?.(this.cfg.name + ' ENRAGED', 'Faster attacks. Chained combos.', 0xff3d3d, 1200);
+    this.scene.tweens.add({ targets: this, scale: 1.12, duration: 160, yoyo: true, repeat: 1 });
   }
   aim(p) { return Phaser.Math.Angle.Between(this.x, this.y, p.x, p.y - 10); }
 
@@ -243,6 +264,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.actUpdate = () => {
       if (this.body.blocked.left || this.body.blocked.right || this.x <= this.A.left + 13 || this.x >= this.A.right - 13) {
         this.body.setVelocityX(0); this.scene.cameras.main.shake(180, 0.008); this.timer = Math.min(this.timer, 250);
+        if (this.mini) { const gy = this.body.bottom - 5, back = this.x < (this.A.left + this.A.right) / 2 ? 1 : -1; this.scene.enemyShock(this.x + back * 14, gy, back * 190 * this.spd); }
         this.actUpdate = null;
       }
     };
@@ -323,7 +345,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
         const A = this.A;
         if (this.cfg.flying) { this.x = Phaser.Math.Between(A.left + 60, A.right - 60); this.y = Phaser.Math.Between(A.top + 30, A.top + 90); }
         else { this.x = p.x > (A.left + A.right) / 2 ? A.left + 50 : A.right - 50; }
-        this.scene.tweens.add({ targets: this, alpha: 1, duration: 200, onComplete: () => this.p_spray(this.scene.player) });
+        this.scene.tweens.add({ targets: this, alpha: 1, duration: 200, onComplete: () => { this.p_spray(this.scene.player); if (this.mini && this.id === 'warden') this.scene.time.delayedCall(250, () => { if (this.active && !this.dying) this.p_orbs(); }); } });
         this.timer = 900;
       },
     });
@@ -333,6 +355,14 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.setFlipX(dir < 0);
     this.body.setVelocityX(dir * 380 * this.spd);
     this.timer = 340; let ghost = 0;
+    if (this.mini) {
+      this.scene.time.delayedCall(330, () => {
+        if (!this.active || this.dying) return;
+        const pl = this.scene.player, a0 = this.aim(pl);
+        for (let i = -1; i <= 1; i++) this.scene.enemyShootAngle(this.x, this.y - 4, a0 + i * 0.22, 170 * this.spd);
+        if (this.enraged && !this.secondDash) { this.secondDash = true; this.p_dash(pl); this.timer = 360; } else this.secondDash = false;
+      });
+    }
     this.actUpdate = (dt) => {
       ghost -= dt;
       if (ghost <= 0) {

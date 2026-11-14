@@ -4,7 +4,9 @@
 //   training - practice against a specimen bought in the training room
 import Phaser from 'phaser';
 import { Player, Enemy, Boss } from '../entities.js';
+import { MAPS, pickMap, seededRandom } from '../maps.js';
 import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, loadSave } from '../data.js';
+import { OX, roomSides } from '../ui.js';
 import { W, H, txt, cityBackdrop, ashFall, glow, fmt, COL } from '../ui.js';
 import { TouchControls } from '../touch.js';
 import { sfx, playMusic, setStorm, stopStorm } from '../audio.js';
@@ -18,6 +20,7 @@ export default class Run extends Phaser.Scene {
   init(data) {
     this.mode = data.mode || 'run';
     this.bossId = data.boss || null;
+    this.mapId = data.map || null;
     this.specimen = data.specimen || null;
   }
 
@@ -32,10 +35,16 @@ export default class Run extends Phaser.Scene {
     this.segments = []; this.seg = null; this.boss = null; this.arena = null; this.pendingArenas = [];
     this.slowZones = []; this.towerHinted = false; this.camMinX = 0; this.prevJump = false;
     this.lastTop = GY;
+    // map: fixed seed for the layout, theme colours. Combat randomness stays unseeded.
+    this.map = this.mode === 'run' ? (MAPS.find(m => m.id === this.mapId) || pickMap()) : MAPS[0];
+    const rng = seededRandom(this.map.seed);
+    this.rand = rng;
+    this.between = (lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
+    this.pick = (arr) => arr[Math.floor(rng() * arr.length)];
 
     // ----- backdrop
-    if (this.mode === 'training') this.add.image(0, 0, 'bg_training').setOrigin(0).setScrollFactor(0).setDepth(-10);
-    else this.backdrop = cityBackdrop(this);
+    if (this.mode === 'training') { roomSides(this); this.add.image(OX, 0, 'bg_training').setOrigin(0).setScrollFactor(0).setDepth(-10); }
+    else this.backdrop = cityBackdrop(this, true, this.map.theme);
     ashFall(this, 4);
 
     // ----- physics groups
@@ -44,6 +53,7 @@ export default class Run extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.pBullets = this.physics.add.group({ allowGravity: false });
     this.grenades = this.physics.add.group();
+    this.discs = this.physics.add.group({ allowGravity: false });
     this.eBullets = this.physics.add.group({ allowGravity: false });
     this.eBombs = this.physics.add.group();
     this.pickups = this.physics.add.group();
@@ -57,6 +67,8 @@ export default class Run extends Phaser.Scene {
     P.add.collider(this.pickups, this.solids);
     P.add.collider(this.crates, this.solids);
     P.add.collider(this.grenades, this.solids, (g) => this.explodeGrenade(g));
+    P.add.collider(this.discs, this.solids, (d) => this.discBounce(d));
+    P.add.overlap(this.discs, this.enemies, (d, e) => this.bulletHitEnemy(d, e));
     P.add.collider(this.eBombs, this.solids, (b) => this.explodeBomb(b));
     P.add.overlap(this.pBullets, this.solids, (b) => this.popBullet(b));
     P.add.overlap(this.eBullets, this.solids, (b) => { if (!b.noSolid) this.popBullet(b); });
@@ -106,9 +118,9 @@ export default class Run extends Phaser.Scene {
     playMusic(this.mode === 'arena' ? 'boss' : 'run');
     this.chipCombo = 0; this.chipT = 0;
 
-    if (this.mode === 'arena') this.time.delayedCall(700, () => this.startBossFight(this.arena, this.bossId, 1, false));
+    if (this.mode === 'arena') this.time.delayedCall(700, () => this.startBossFight(this.arena, this.bossId, MINIBOSSES.find(m => m.id === this.bossId).level, false));
     if (this.mode === 'training') this.startTraining();
-    if (this.mode === 'run') this.banner('SECTOR 7', 'Outrun the scrap storm. Collect the bounty.', 0x3df5ff);
+    if (this.mode === 'run') this.banner(this.map.name, 'Map ' + this.map.id + ' of ' + MAPS.length + '  -  Outrun the scrap storm.', 0x3df5ff);
     cam.fadeIn(300);
   }
 
@@ -120,8 +132,9 @@ export default class Run extends Phaser.Scene {
   block(x, top, w, style = 'ground', visible = true) {
     const h = 360 - top;
     if (visible) {
-      this.track(this.add.tileSprite(x, top, w, 16, 'tile_top').setOrigin(0).setDepth(10));
-      this.track(this.add.tileSprite(x, top + 16, w, h - 16, style === 'tower' ? 'tile_tower' : 'tile_fill').setOrigin(0).setDepth(10));
+      const tint = this.map?.theme.tile ?? 0xffffff;
+      this.track(this.add.tileSprite(x, top, w, 16, 'tile_top').setOrigin(0).setDepth(10).setTint(tint));
+      this.track(this.add.tileSprite(x, top + 16, w, h - 16, style === 'tower' ? 'tile_tower' : 'tile_fill').setOrigin(0).setDepth(10).setTint(tint));
     }
     const z = this.add.zone(x, top, w, h).setOrigin(0);
     this.physics.add.existing(z, true); this.solids.add(z); this.track(z);
@@ -140,7 +153,7 @@ export default class Run extends Phaser.Scene {
       g.fillStyle(tint, 0.22).fillRect(x, y, w, 8).fillStyle(tint, 1).fillRect(x, y, w, 1).fillStyle(tint, 0.5).fillRect(x, y + 7, w, 1);
       for (let i = x + 4; i < x + w; i += 8) g.fillStyle(tint, 0.6).fillRect(i, y + 3, 4, 2);
       this.track(g, glow(this, x + w / 2, y + 4, tint, 1.4, 0.25).setScale(w / 20, 0.5).setDepth(9));
-    } else this.track(this.add.tileSprite(x, y, w, 8, 'girder').setOrigin(0).setDepth(10));
+    } else this.track(this.add.tileSprite(x, y, w, 8, 'girder').setOrigin(0).setDepth(10).setTint(this.map?.theme.tile ?? 0xffffff));
     const z = this.add.zone(x, y, w, 8).setOrigin(0);
     this.physics.add.existing(z, true); this.solids.add(z); this.track(z);
     this.seg?.spans.push({ x0: x, x1: x + w, y, girder: true });
@@ -162,15 +175,15 @@ export default class Run extends Phaser.Scene {
     }
   }
   deco(x, top, wide) {
-    const r = Math.random();
+    const r = this.rand();
     if (r < 0.3) this.track(this.add.image(x, top, 'scrapheap').setOrigin(0.5, 1).setDepth(5).setAlpha(0.95));
     else if (r < 0.5 && wide) {
-      const k = Phaser.Utils.Array.GetRandom(['sign_a', 'sign_b', 'sign_c']);
+      const k = this.pick(['sign_a', 'sign_b', 'sign_c']);
       const col = { sign_a: COL.mag, sign_b: COL.cyan, sign_c: COL.amber }[k];
-      const y = top - 50 - Math.random() * 40;
+      const y = top - 50 - this.rand() * 40;
       this.track(this.add.image(x, y, k).setDepth(6));
       const gl = this.track(glow(this, x, y, col, 1.6, 0.5).setDepth(6));
-      if (Math.random() < 0.5) this.tweens.add({ targets: gl, alpha: 0.15, duration: 90, yoyo: true, repeat: -1, repeatDelay: 1500 + Math.random() * 3000 });
+      if (this.rand() < 0.5) this.tweens.add({ targets: gl, alpha: 0.15, duration: 90, yoyo: true, repeat: -1, repeatDelay: 1500 + this.rand() * 3000 });
     } else if (r < 0.62) this.track(this.add.image(x, top, 'ac_unit').setOrigin(0.5, 1).setDepth(5));
   }
 
@@ -191,29 +204,30 @@ export default class Run extends Phaser.Scene {
   genSegment() {
     const m = this.genX / T;
     if (m >= this.nextBossM) { this.segBossArena(); this.nextBossM += BOSS_EVERY; return; }
-    const opts = [['flat', 3], ['gap', 3.2], ['steps', 1.8], ['roofs', 2.6]];
-    if (m > 70) opts.push(['tower', 1.4]);
+    const mix = this.map.mix;
+    const opts = [['flat', mix.flat], ['gap', mix.gap], ['steps', mix.steps], ['roofs', mix.roofs]];
+    if (m > 70) opts.push(['tower', mix.tower]);
     const total = opts.reduce((a, o) => a + o[1], 0);
-    let r = Math.random() * total, pick = 'flat';
+    let r = this.rand() * total, pick = 'flat';
     for (const [k, w] of opts) { if ((r -= w) <= 0) { pick = k; break; } }
     this['seg_' + pick]();
   }
   seg_flat() {
-    const x = this.genX, w = T * Phaser.Math.Between(14, 24);
-    const top = Phaser.Math.Clamp(this.lastTop + T * Phaser.Math.Between(-1, 1), GY - 48, GY);
+    const x = this.genX, w = T * this.between(14, 24);
+    const top = Phaser.Math.Clamp(this.lastTop + T * this.between(-1, 1), GY - 48, GY);
     this.beginSeg(x);
     this.block(x, top, w);
-    if (this.diff > 1.3 && Math.random() < 0.4) this.spikes(x + Math.floor(w / 2 / T) * T, top, 32);
+    if (this.diff > 1.3 && this.rand() < 0.4) this.spikes(x + Math.floor(w / 2 / T) * T, top, 32);
     else this.chipArc(x + w / 2 - 40, x + w / 2 + 40, top - 34);
-    this.deco(x + 40 + Math.random() * (w - 80), top, true);
+    this.deco(x + 40 + this.rand() * (w - 80), top, true);
     this.populate(this.seg.spans);
     this.endSeg(x + w); this.genX = x + w; this.lastTop = top;
   }
   seg_gap() {
     const x = this.genX, d = this.diff;
-    const gap = T * Phaser.Math.Between(3, d > 2 ? 7 : 5);
-    const w2 = T * Phaser.Math.Between(9, 16);
-    const top2 = Phaser.Math.Clamp(this.lastTop + T * Phaser.Math.Between(-2, 2), GY - 64, GY);
+    const gap = T * this.between(3, d > 2 ? 7 : 5);
+    const w2 = T * this.between(9, 16);
+    const top2 = Phaser.Math.Clamp(this.lastTop + T * this.between(-2, 2), GY - 64, GY);
     this.beginSeg(x);
     if (gap >= T * 6) this.girder(x + gap / 2 - 16, Math.min(this.lastTop, top2) - 24, 32);
     this.chipArc(x - 8, x + gap + 8, Math.min(this.lastTop, top2) - 46, 6);
@@ -227,8 +241,8 @@ export default class Run extends Phaser.Scene {
     this.beginSeg(x);
     let cx = x, top = this.lastTop;
     for (let i = 0; i < 3; i++) {
-      top = Math.max(GY - 96, top - T * Phaser.Math.Between(1, 3));
-      const w = T * Phaser.Math.Between(4, 6);
+      top = Math.max(GY - 96, top - T * this.between(1, 3));
+      const w = T * this.between(4, 6);
       this.block(cx, top, w, i === 2 ? 'tower' : 'ground');
       cx += w;
     }
@@ -240,11 +254,11 @@ export default class Run extends Phaser.Scene {
     const x = this.genX;
     this.beginSeg(x);
     let cx = x, top = this.lastTop;
-    const n = Phaser.Math.Between(2, 3);
+    const n = this.between(2, 3);
     for (let i = 0; i < n; i++) {
-      const gap = T * Phaser.Math.Between(2, 4);
-      top = Phaser.Math.Clamp(top + T * Phaser.Math.Between(-3, 3), GY - 72, GY);
-      const w = T * Phaser.Math.Between(6, 10);
+      const gap = T * this.between(2, 4);
+      top = Phaser.Math.Clamp(top + T * this.between(-3, 3), GY - 72, GY);
+      const w = T * this.between(6, 10);
       this.chipArc(cx, cx + gap, top - 40, 3);
       this.block(cx + gap, top, w, 'tower');
       this.deco(cx + gap + w / 2, top, w > 120);
@@ -277,8 +291,8 @@ export default class Run extends Phaser.Scene {
   segBossArena() {
     const x = this.genX;
     this.beginSeg(x);
-    this.block(x, GY, 32 + 480 + 64);
-    const left = x + 32, right = x + 32 + 480;
+    this.block(x, GY, 32 + W + 64);
+    const left = x + 32, right = x + 32 + W;
     this.girder(left + 88, GY - 56, 64); this.girder(right - 152, GY - 56, 64);
     const sign = this.track(txt(this, left - 20, GY - 92, '!! DANGER !!\nBOUNTY TARGET AHEAD', { color: '#ff3d8b', center: true }).setDepth(12));
     sign.setX(left - sign.width / 2);
@@ -289,7 +303,7 @@ export default class Run extends Phaser.Scene {
   populate(spans) {
     const d = this.diff;
     if (this.genX < 700) return;
-    let n = Math.floor(Math.random() * (1 + d * 0.7)) + (Math.random() < 0.6 ? 1 : 0);
+    let n = Math.floor(this.rand() * (1 + d * 0.7)) + (this.rand() < 0.6 ? 1 : 0);
     n = Math.min(n, 5);
     const usable = spans.filter(s => s.x1 - s.x0 >= 40);
     if (!usable.length) return;
@@ -298,13 +312,13 @@ export default class Run extends Phaser.Scene {
     if (d >= 2) weights.push(['bomber', 1.5]);
     const total = weights.reduce((a, w) => a + w[1], 0);
     for (let i = 0; i < n; i++) {
-      const s = Phaser.Utils.Array.GetRandom(usable);
-      let r = Math.random() * total, type = 'crawler';
+      const s = this.pick(usable);
+      let r = this.rand() * total, type = 'crawler';
       for (const [k, w] of weights) { if ((r -= w) <= 0) { type = k; break; } }
-      const ex = Phaser.Math.Between(s.x0 + 16, s.x1 - 16);
+      const ex = this.between(s.x0 + 16, s.x1 - 16);
       const cfg = ENEMIES[type];
       const half = { drone: 6, walker: 11, turret: 8, crawler: 5, bomber: 7 }[type];
-      const ey = cfg.flying ? s.y - Phaser.Math.Between(70, 110) : s.y - half - 1;
+      const ey = cfg.flying ? s.y - this.between(70, 110) : s.y - half - 1;
       this.spawnEnemy(type, ex, ey, { hpMul: 1 + (d - 1) * 0.25, minX: s.x0 + 10, maxX: s.x1 - 10 });
     }
   }
@@ -480,6 +494,15 @@ export default class Run extends Phaser.Scene {
       this.muzzle(mx, my, COL.lime);
       return;
     }
+    if (w.disc) {
+      const a = this.aimAngle(mx, my, dir) + (dir > 0 ? 0.12 : -0.12); // aimed slightly down so it skips along floors
+      const d = this.discs.create(mx, my, 'b_disc');
+      d.setDepth(35); d.body.setCircle(4, 0.5, 0.5); d.body.setBounce(1, 1);
+      d.body.setVelocity(Math.cos(a) * w.speed, Math.sin(a) * w.speed);
+      d.dmg = w.dmg * this.dmgMul(); d.pierce = true; d.life = w.life; d.bounces = w.bounces; d.hits = new Set();
+      this.muzzle(mx, my, COL.amber);
+      return;
+    }
     const base = this.aimAngle(mx, my, dir);
     for (let i = 0; i < w.pellets; i++) {
       let a = base;
@@ -520,6 +543,12 @@ export default class Run extends Phaser.Scene {
     sfx('hit');
     this.fxSpark.explode(4, b.x, b.y);
     if (b.pierce) b.hits.add(e); else b.destroy();
+  }
+  discBounce(d) {
+    if (!d.active) return;
+    if (--d.bounces < 0) return this.popBullet(d);
+    d.hits.clear(); // a bounced disc can cut the same robot again
+    this.fxSpark.explode(3, d.x, d.y); sfx('ricochet');
   }
   popBullet(b) { if (!b.active) return; this.fxSpark.explode(3, b.x, b.y); b.destroy(); }
   explodeGrenade(g) {
@@ -800,7 +829,7 @@ export default class Run extends Phaser.Scene {
       score: Math.floor(this.stats.score), distance: this.stats.distance,
       kills: this.mode === 'training' ? 0 : this.stats.kills, trainingKills: this.stats.kills,
       bosses: this.stats.bosses, bounty: this.mode === 'training' ? 0 : Math.floor(this.stats.bounty),
-      wallJumps: this.stats.wallJumps, flawless: this.stats.flawless,
+      wallJumps: this.stats.wallJumps, flawless: this.stats.flawless, map: this.mode === 'run' ? this.map.id : null,
     };
     this.cameras.main.fadeOut(300);
     this.time.delayedCall(320, () => {
@@ -848,6 +877,7 @@ export default class Run extends Phaser.Scene {
 
     // projectiles + pickups
     for (const b of this.pBullets.getChildren().slice()) { b.life -= dt; if (b.life <= 0) b.destroy(); }
+    for (const d of this.discs.getChildren().slice()) { d.life -= dt; d.rotation += dt * 0.03 * Math.sign(d.body.velocity.x || 1); if (d.life <= 0) this.popBullet(d); }
     for (const g of this.grenades.getChildren().slice()) { g.life -= dt; g.rotation += dt * 0.02; if (g.life <= 0) this.explodeGrenade(g); }
     for (const b of this.eBullets.getChildren().slice()) {
       b.life -= dt;
@@ -892,8 +922,8 @@ export default class Run extends Phaser.Scene {
       return true;
     });
     const far = this.cameras.main.scrollX - 220, farR = this.cameras.main.scrollX + W + 400;
-    for (const grp of [this.enemies, this.pBullets, this.eBullets, this.pickups, this.eBombs, this.grenades]) {
-      for (const o of grp.getChildren().slice()) if (o.x < far || (grp === this.pBullets && o.x > farR)) { if (o === this.boss) continue; o.destroy(); }
+    for (const grp of [this.enemies, this.pBullets, this.eBullets, this.pickups, this.eBombs, this.grenades, this.discs]) {
+      for (const o of grp.getChildren().slice()) if (o.x < far || ((grp === this.pBullets || grp === this.discs) && o.x > farR)) { if (o === this.boss) continue; o.destroy(); }
     }
     this.slowZones = this.slowZones.filter(([, b]) => b > left);
   }
