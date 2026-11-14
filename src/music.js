@@ -51,6 +51,7 @@ function toks(s) {
 // brass/lead: 16 tokens. note names (E5), x = chord stab (brass), - tie (may cross bars), . rest
 export const SONGS = {
   menu: {
+    // v3, approved: bass-led, no piano
     title: 'Neon Lounge', bpm: 104, swing: 0.13, drumLevel: 0.85,
     drums: {
       hats: { k: 'x.......x.......', s: '................', h: 'c.c.c.cCc.c.c.co', p: '................' },
@@ -64,20 +65,15 @@ export const SONGS = {
       m2: 'r - . f . x s o^ . . r . f . t f',
       walk: 'r . . o^ . s . f . x r . t . f .',
     },
-    keys: {
-      rh1: 'x--.....x-.x....',
-      rh2: '..x-....x--.....',
-      long: 'x---------------',
-    },
     brass: {
       st1: '....x..x.....x..',
       st2: '..........x.x-..',
     },
     sections: {
-      intro: { chords: ['Dm9', 'G13', 'Dm9', 'G13'], drums: ['hats', 'hats', 'groove', 'fill'], bass: [null, null, 'm1', 'm2'], keys: 'rh1', keysInst: 'rhodes', crash: false },
-      A: { chords: ['Dm9', 'G13', 'Dm9', 'G13', 'Dm9', 'G13', 'Bbmaj7', 'A7#9'], drums: ['groove', 'groove', 'groove', 'groove2', 'groove', 'groove', 'groove', 'fill'], bass: ['m1', 'm2'], keys: ['rh1', 'rh2'], keysInst: 'rhodes', crash: true },
+      intro: { chords: ['Dm9', 'G13', 'Dm9', 'G13'], drums: ['hats', 'hats', 'groove', 'fill'], bass: [null, null, 'm1', 'm2'], pad: true, crash: false },
+      A: { chords: ['Dm9', 'G13', 'Dm9', 'G13', 'Dm9', 'G13', 'Bbmaj7', 'A7#9'], drums: ['groove', 'groove', 'groove', 'groove2', 'groove', 'groove', 'groove', 'fill'], bass: ['m1', 'm2'], brass: ['st1', 'st2'], crash: true },
       Alead: {
-        chords: ['Dm9', 'G13', 'Dm9', 'G13', 'Dm9', 'G13', 'Bbmaj7', 'A7#9'], drums: ['groove', 'groove', 'groove', 'groove2', 'groove', 'groove', 'groove', 'fill'], bass: ['m1', 'm2'], keys: ['rh1', 'rh2'], keysInst: 'rhodes', leadInst: 'soft', crash: true,
+        chords: ['Dm9', 'G13', 'Dm9', 'G13', 'Dm9', 'G13', 'Bbmaj7', 'A7#9'], drums: ['groove', 'groove', 'groove', 'groove2', 'groove', 'groove', 'groove', 'fill'], bass: ['m1', 'm2'], brass: [null, 'st2'], leadInst: 'soft', crash: true,
         lead: [
           '. . A4 . C5 . D5 - - - . C5 D5 . F5 .',
           'E5 - - - D5 . C5 . D5 - - - . . . .',
@@ -90,7 +86,7 @@ export const SONGS = {
         ],
       },
       B: {
-        chords: ['Gm9', 'C9', 'Fmaj9', 'Bbmaj7', 'Em7b5', 'A7#9', 'Dm9', 'A7#9'], drums: ['groove2', 'groove', 'groove2', 'groove', 'groove2', 'groove', 'groove2', 'fill'], bass: ['walk'], keys: 'rh2', keysInst: 'rhodes', pad: true, leadInst: 'soft', crash: true,
+        chords: ['Gm9', 'C9', 'Fmaj9', 'Bbmaj7', 'Em7b5', 'A7#9', 'Dm9', 'A7#9'], drums: ['groove2', 'groove', 'groove2', 'groove', 'groove2', 'groove', 'groove2', 'fill'], bass: ['walk'], pad: true, leadInst: 'soft', crash: true,
         lead: [
           'D5 - . F5 . A5 . Bb5 - - . A5 . F5 . .',
           'G5 - - - . . E5 . D5 . E5 - - - . .',
@@ -103,7 +99,7 @@ export const SONGS = {
         ],
       },
       Abrass: {
-        chords: ['Dm9', 'G13', 'Dm9', 'G13', 'Dm9', 'G13', 'Bbmaj7', 'A7#9'], drums: ['groove', 'groove2', 'groove', 'groove2', 'groove', 'groove2', 'groove', 'fill'], bass: ['m2', 'm1'], keys: ['rh1', 'rh2'], keysInst: 'rhodes', brass: ['st1', 'st2'], leadInst: 'soft', crash: true,
+        chords: ['Dm9', 'G13', 'Dm9', 'G13', 'Dm9', 'G13', 'Bbmaj7', 'A7#9'], drums: ['groove', 'groove2', 'groove', 'groove2', 'groove', 'groove2', 'groove', 'fill'], bass: ['m2', 'm1'], brass: ['st1', 'st2'], leadInst: 'soft', crash: true,
         lead: [
           '. . A4 . C5 . D5 - - - . C5 D5 . F5 .',
           'E5 - - - D5 . C5 . D5 - - - . . . .',
@@ -114,7 +110,7 @@ export const SONGS = {
           'E5 - - - . . G5 - E5 - . . . . . .',
         ],
       },
-      break: { chords: ['Dm9', 'G13', 'Dm9', 'A7#9'], drums: ['half', 'half', 'half', 'fill'], bass: ['walk'], keys: 'long', keysInst: 'rhodes', pad: true, crash: true },
+      break: { chords: ['Dm9', 'G13', 'Dm9', 'A7#9'], drums: ['half', 'half', 'half', 'fill'], bass: ['walk'], pad: true, crash: true },
     },
     form: ['intro', 'A', 'Alead', 'B', 'Abrass', 'break'],
     loopFrom: 2,
