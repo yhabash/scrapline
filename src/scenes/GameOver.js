@@ -16,7 +16,8 @@ export default class GameOver extends Phaser.Scene {
   init(r) { this.r = r; }
 
   create() {
-    this._leaving = false;
+    // Phaser reuses this scene object for every run, so reset the submission state each time.
+    this._leaving = false; this.sent = false; this.sending = false; this.nameDom = null;
     const r = this.r;
     const save = loadSave();
     const prevBest = save.stats.bestScore;
