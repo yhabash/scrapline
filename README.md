@@ -4,7 +4,7 @@ A 16-bit cyberpunk endless runner. You're a mercenary hunting robots for bounty 
 
 **Play:** https://playscrapline.vercel.app
 
-## Features (v0.3)
+## Features (v0.4)
 - 10 seeded rooftop maps with their own colours and layouts; each run picks one at random
 - Endless procedurally generated rooftops, gaps, stairs and wall-jump chimneys
 - Double jump, wall slide and wall jump
@@ -38,6 +38,7 @@ Built with [Phaser 3](https://phaser.io) and [Vite](https://vite.dev). All art i
 The leaderboard API lives in `api/leaderboard.js` (a Vercel Function). It needs a Vercel Blob store connected to the project (`BLOB_READ_WRITE_TOKEN`); in local dev it falls back to an in-memory board.
 
 ## Changelog
+- **0.4.0**: Sawjaw is 20% easier (beatable with the starting pistol); the Achievements menu shows progress bars and marks earned achievements.
 - **0.3.0**: Funk soundtrack, 10 random maps, Ricochet Disc replaces the Plasma Blade, tougher mini-bosses, full-screen phone controls, Demolisher achievement unlocks the Grenade Launcher, Pulse SMG +25% damage, separate staging leaderboard.
 - **0.2.0**: Sound effects, synthwave music, settings screen, global all-time and weekly leaderboards.
 - **0.1.0**: First playable release.
