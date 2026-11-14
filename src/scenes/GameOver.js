@@ -130,13 +130,18 @@ export default class GameOver extends Phaser.Scene {
     try {
       const res = await submitScore({ name, score: r.score, distance: r.distance, kills: r.kills, bosses: r.bosses, weapon: r.weapon });
       if (!this.sys.isActive()) return;
-      this.sent = true; rememberEntry(res.id);
+      this.sent = true;
+      [res.all?.id, res.weekly?.id].forEach(id => { if (id) rememberEntry(id); });
       this.nameDom.node.disabled = true;
       const a = res.all?.rank, w = res.weekly?.rank;
-      if (a || w) { sfx('victory'); msg((a ? 'ALL-TIME #' + a : '') + (a && w ? '  ' : '') + (w ? 'WEEK #' + w : ''), '#9dff3d'); }
+      const kept = res.all?.kept && (res.weekly?.kept || !w); // this name already has a better score
+      const ranks = (a ? 'ALL-TIME #' + a : '') + (a && w ? '  ' : '') + (w ? 'WEEK #' + w : '');
+      if (kept) { sfx('uiSelect'); msg('Your best ' + fmt(res.all.best) + ' stays', '#c9c5e3'); }
+      else if (a || w) { sfx('victory'); msg(ranks, '#9dff3d'); }
       else { sfx('uiSelect'); msg('Not in the top 100 yet.', '#c9c5e3'); }
       this.submitBtn.setLabel('VIEW'); this.submitBtn.setEnabled(true);
-      this.submitBtn.onClick = () => transitionTo(this, 'Leaderboard', { board: w && !a ? 'week' : 'all', highlight: res.id });
+      const showWeek = w && !a;
+      this.submitBtn.onClick = () => transitionTo(this, 'Leaderboard', { board: showWeek ? 'week' : 'all', highlight: (showWeek ? res.weekly?.id : res.all?.id) || res.id });
     } catch (e) {
       if (!this.sys.isActive()) return;
       sfx('uiDenied'); msg(e.message.length > 30 ? 'Could not submit. Try again.' : e.message, '#ff4a3d');
