@@ -3,7 +3,7 @@
 //   POST /api/leaderboard {name, score, distance, kills, bosses, weapon}
 // Boards are JSON files in a private Vercel Blob store. Writes use ETag checks
 // (ifMatch) so two players submitting at once can't overwrite each other.
-import { get, put } from '@vercel/blob';
+import { get, head, put } from '@vercel/blob';
 import { tidyName, isNameAllowed } from '../src/shared/names.js';
 
 const MAX = 100;
@@ -26,12 +26,18 @@ const ENV = process.env.VERCEL_ENV || 'development';
 const ROOT = ENV === 'production' ? 'leaderboard' : `leaderboard-${ENV}`;
 const pathFor = (board) => board === 'week' ? `${ROOT}/week-${weekKey()}.json` : `${ROOT}/all-time.json`;
 
-async function readBoard(path) {
+async function readBoard(path, withEtag = false) {
   if (!USE_BLOB) { const v = memory.get(path); return { list: v ? JSON.parse(v.body) : [], etag: v?.etag || null }; }
+  // For writes, take the ETag from head() BEFORE reading the content (as Vercel's docs do).
+  // If the board changes after head(), the conditional write fails and we simply retry.
+  let etag = null;
+  if (withEtag) {
+    try { etag = (await head(path)).etag || null; } catch (e) { if (!/not.?found/i.test(e.name + e.message)) throw e; }
+  }
   const r = await get(path, { access: 'private', useCache: false });
   if (!r || r.statusCode !== 200) return { list: [], etag: null };
   const text = await new Response(r.stream).text();
-  return { list: JSON.parse(text || '[]'), etag: r.blob.etag };
+  return { list: JSON.parse(text || '[]'), etag: withEtag ? etag : r.blob.etag };
 }
 async function writeBoard(path, list, etag) {
   const body = JSON.stringify(list);
@@ -50,18 +56,24 @@ const sortBoard = (l) => l.sort((a, b) => b.score - a.score || a.at - b.at);
 const qualifies = (list, score) => list.length < MAX || score > list[list.length - 1].score;
 
 // Insert with optimistic concurrency: re-read and retry if someone else wrote first.
+// If conditional writes keep failing (for example the storage service rejecting the
+// ETag), the last attempt writes without the check rather than losing the player's score.
+const TRIES = 5;
 async function submitTo(board, entry) {
   const path = pathFor(board);
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { list, etag } = await readBoard(path);
+  for (let attempt = 0; attempt < TRIES; attempt++) {
+    const last = attempt === TRIES - 1;
+    const { list, etag } = await readBoard(path, true);
     if (!qualifies(list, entry.score)) return { rank: null, entries: list };
     const next = sortBoard([...list, entry]).slice(0, MAX);
     try {
-      await writeBoard(path, next, etag);
+      await writeBoard(path, next, last ? null : etag);
+      if (attempt > 0) console.warn('leaderboard write needed retries', { board, attempt, unconditional: last });
       return { rank: next.findIndex(e => e.id === entry.id) + 1 || null, entries: next };
     } catch (e) {
       const conflict = e.precondition || e.name === 'BlobPreconditionFailedError' || /precondition/i.test(String(e.message));
-      if (!conflict) throw e;
+      console.warn('leaderboard write rejected', { board, attempt, conflict, name: e.name, message: String(e.message).slice(0, 200), etag });
+      if (!conflict || last) throw e;
       await new Promise(r => setTimeout(r, 60 + Math.random() * 140));
     }
   }
