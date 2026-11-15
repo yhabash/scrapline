@@ -53,6 +53,12 @@ async function writeBoard(path, list, etag) {
   });
 }
 const sortBoard = (l) => l.sort((a, b) => b.score - a.score || a.at - b.at);
+// One entry per name: keep each name's best score (earliest wins a tie).
+const key = (e) => String(e.name).toUpperCase();
+function onePerName(list) {
+  const seen = new Set();
+  return sortBoard([...list]).filter(e => (seen.has(key(e)) ? false : (seen.add(key(e)), true)));
+}
 const qualifies = (list, score) => list.length < MAX || score > list[list.length - 1].score;
 
 // Insert with optimistic concurrency: re-read and retry if someone else wrote first.
@@ -63,13 +69,18 @@ async function submitTo(board, entry) {
   const path = pathFor(board);
   for (let attempt = 0; attempt < TRIES; attempt++) {
     const last = attempt === TRIES - 1;
-    const { list, etag } = await readBoard(path, true);
-    if (!qualifies(list, entry.score)) return { rank: null, entries: list };
-    const next = sortBoard([...list, entry]).slice(0, MAX);
+    const read = await readBoard(path, true), etag = read.etag;
+    const list = onePerName(read.list);
+    // Same name already has an equal or better score: keep that one, nothing to write.
+    const mine = list.find(e => key(e) === key(entry));
+    if (mine && mine.score >= entry.score) return { rank: list.indexOf(mine) + 1, id: mine.id, kept: true, best: mine.score, entries: list.slice(0, MAX) };
+    const others = list.filter(e => key(e) !== key(entry));
+    if (!qualifies(others, entry.score)) return { rank: null, entries: list.slice(0, MAX) };
+    const next = sortBoard([...others, entry]).slice(0, MAX);
     try {
       await writeBoard(path, next, last ? null : etag);
       if (attempt > 0) console.warn('leaderboard write needed retries', { board, attempt, unconditional: last });
-      return { rank: next.findIndex(e => e.id === entry.id) + 1 || null, entries: next };
+      return { rank: next.findIndex(e => e.id === entry.id) + 1 || null, id: entry.id, improved: !!mine, entries: next };
     } catch (e) {
       const conflict = e.precondition || e.name === 'BlobPreconditionFailedError' || /precondition/i.test(String(e.message));
       console.warn('leaderboard write rejected', { board, attempt, conflict, name: e.name, message: String(e.message).slice(0, 200), etag });
@@ -99,7 +110,7 @@ export default {
       if (request.method === 'GET') {
         const board = new URL(request.url).searchParams.get('board') === 'week' ? 'week' : 'all';
         const { list } = await readBoard(pathFor(board));
-        return json({ board, week: weekKey(), env: ENV, entries: list }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
+        return json({ board, week: weekKey(), env: ENV, entries: onePerName(list).slice(0, MAX) }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
       }
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -126,7 +137,7 @@ export default {
       if (recent.size > 5000) recent.clear();
 
       const [all, week] = await Promise.all([submitTo('all', entry), submitTo('week', entry)]);
-      console.log('leaderboard saved', { score: entry.score, allRank: all.rank, weekRank: week.rank });
+      console.log('leaderboard submit', { score: entry.score, allRank: all.rank, weekRank: week.rank, keptBetter: !!(all.kept && week.kept) });
       return json({ id: entry.id, name, week: weekKey(), all, weekly: week });
     } catch (e) {
       console.error('leaderboard error', e);
