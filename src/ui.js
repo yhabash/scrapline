@@ -92,6 +92,8 @@ export class FocusNav {
     kb.on('keydown', (e) => {
       if (!this.items.length || typing()) return;
       const k = e.code;
+      // A held key (e.g. fire still held when a run ends) only sends repeats: never let those press buttons.
+      if (e.repeat && !k.startsWith('Arrow')) return;
       if (k === 'ArrowDown' || k === 'KeyS' || k === 'ArrowRight' || k === 'KeyD') this.move(1);
       else if (k === 'ArrowUp' || k === 'KeyW' || k === 'ArrowLeft' || k === 'KeyA') this.move(-1);
       else if (k === 'Enter' || k === 'Space' || k === 'KeyJ' || k === 'KeyX') this.items[this.i]?.press();
