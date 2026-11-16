@@ -112,7 +112,7 @@ export default class GameOver extends Phaser.Scene {
       color: '#ffffff', background: '#0b0614', border: '1px solid #3df5ff', outline: 'none', textTransform: 'uppercase', letterSpacing: '1px',
     });
     el.addEventListener('input', () => { const v = el.value.toUpperCase().replace(/[^A-Z0-9 _-]/g, '').replace(/^\s+/, '').replace(/\s{2,}/g, ' ').slice(0, NAME_MAX); if (v !== el.value) el.value = v; });
-    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.submit(r); if (e.key === 'Escape') el.blur(); });
+    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.repeat) this.submit(r); if (e.key === 'Escape') el.blur(); });
     this.nameDom = this.add.dom(108, y, el).setOrigin(0, 0);
     this.submitBtn = new Button(this, 212, y, 58, 15, 'SUBMIT', () => this.submit(r), { nav: this.nav, color: COL.amber });
     this.submitMsg = txt(this, 278, y + 3, 'Global leaderboard', { color: '#575177' });
@@ -145,7 +145,10 @@ export default class GameOver extends Phaser.Scene {
     } catch (e) {
       if (!this.sys.isActive()) return;
       sfx('uiDenied'); msg(e.message.length > 30 ? 'Could not submit. Try again.' : e.message, '#ff4a3d');
-      this.submitBtn.setEnabled(true);
-    } finally { this.sending = false; }
+      // short pause before a retry is allowed, so repeated taps can't flood the server
+      this.time.delayedCall(1500, () => { if (!this.sent && this.submitBtn) this.submitBtn.setEnabled(true); this.sending = false; });
+      return;
+    }
+    this.sending = false;
   }
 }

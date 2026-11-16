@@ -3,7 +3,7 @@
 //   POST /api/leaderboard {name, score, distance, kills, bosses, weapon}
 // Boards are JSON files in a private Vercel Blob store. Writes use ETag checks
 // (ifMatch) so two players submitting at once can't overwrite each other.
-import { get, head, put } from '@vercel/blob';
+import { get, head, put, BlobNotFoundError } from '@vercel/blob';
 import { tidyName, isNameAllowed } from '../src/shared/names.js';
 
 const MAX = 100;
@@ -32,9 +32,11 @@ async function readBoard(path, withEtag = false) {
   // If the board changes after head(), the conditional write fails and we simply retry.
   let etag = null;
   if (withEtag) {
-    try { etag = (await head(path)).etag || null; } catch (e) { if (!/not.?found/i.test(e.name + e.message)) throw e; }
+    // A board that doesn't exist yet (e.g. the first score of a new week) is just empty.
+    try { etag = (await head(path)).etag || null; } catch (e) { if (!(e instanceof BlobNotFoundError)) throw e; }
   }
-  const r = await get(path, { access: 'private', useCache: false });
+  let r;
+  try { r = await get(path, { access: 'private', useCache: false }); } catch (e) { if (e instanceof BlobNotFoundError) return { list: [], etag: null }; throw e; }
   if (!r || r.statusCode !== 200) return { list: [], etag: null };
   const text = await new Response(r.stream).text();
   return { list: JSON.parse(text || '[]'), etag: withEtag ? etag : r.blob.etag };
@@ -133,10 +135,9 @@ export default {
       };
       if ([entry.score, entry.distance, entry.kills, entry.bosses].some(v => v < 0) || entry.score === 0) return json({ error: 'Invalid run.' }, 400);
       if (!plausible(entry)) { console.warn('implausible run', { score: entry.score, distance: entry.distance, kills: entry.kills, bosses: entry.bosses }); return json({ error: 'That run does not add up.' }, 400); }
-      recent.set(ip, now);
-      if (recent.size > 5000) recent.clear();
-
       const [all, week] = await Promise.all([submitTo('all', entry), submitTo('week', entry)]);
+      recent.set(ip, now); // throttle only after a save succeeds, so a failed attempt can be retried
+      if (recent.size > 5000) recent.clear();
       console.log('leaderboard submit', { score: entry.score, allRank: all.rank, weekRank: week.rank, keptBetter: !!(all.kept && week.kept) });
       return json({ id: entry.id, name, week: weekKey(), all, weekly: week });
     } catch (e) {
