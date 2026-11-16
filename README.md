@@ -4,14 +4,14 @@ A 16-bit cyberpunk endless runner. You're a mercenary hunting robots for bounty 
 
 **Play:** https://playscrapline.vercel.app
 
-## Features (v0.5)
+## Features (v0.6)
 - 10 seeded rooftop maps with their own colours and layouts; each run picks one at random
 - Endless procedurally generated rooftops, gaps, stairs and wall-jump chimneys
 - Double jump, wall slide and wall jump
 - 5 robot types and 3 run bosses (Crusher, Hive Core, Siege Tank) that return tougher every 500m
 - Supply drops with temporary upgrades: armor, fire rate, damage, jump jets, scrap magnet, medkits
 - 7 weapons, including the Ricochet Disc, unlocked through mini-boss fights and achievements
-- 3 arena mini-bosses that enrage at half health
+- 3 arena mini-bosses, from easy (Sawjaw) to tough (Gutter Ronin)
 - Training room: spend bounty on captured robots and bosses, then practice against them
 - Keyboard, mouse and full-screen phone controls (slide to run, flick up to jump, hold the right side to fire); pauses automatically when you switch tabs
 - Synthesized 16-bit sound effects and an upbeat funk soundtrack (menu, run and boss tracks), with volume settings
@@ -38,6 +38,7 @@ Built with [Phaser 3](https://phaser.io) and [Vite](https://vite.dev). All art i
 The leaderboard API lives in `api/leaderboard.js` (a Vercel Function). It needs a Vercel Blob store connected to the project (`BLOB_READ_WRITE_TOKEN`); in local dev it falls back to an in-memory board.
 
 ## Changelog
+- **0.6.0**: Mini-boss rebalance: Sawjaw health 61, Tesla Warden 80, Gutter Ronin 95, no enrage phase. One leaderboard entry per name (best kept). Leaderboard saving fixes (new week, held-key floods).
 - **0.5.0**: Phones: TAP TO START screen (full screen on Android, Add to Home Screen tip on iPhone), slide to run, flick up to jump, hold anywhere on the right to fire. New bass-led menu track. Leaderboard save fix.
 - **0.4.0**: Sawjaw is 20% easier (beatable with the starting pistol); the Achievements menu shows progress bars and marks earned achievements.
 - **0.3.0**: Funk soundtrack, 10 random maps, Ricochet Disc replaces the Plasma Blade, tougher mini-bosses, full-screen phone controls, Demolisher achievement unlocks the Grenade Launcher, Pulse SMG +25% damage, separate staging leaderboard.
