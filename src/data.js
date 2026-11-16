@@ -34,7 +34,7 @@ export const BOSS_EVERY = 500; // meters between boss fights
 export const SUPPLY_EVERY = 220; // meters between supply drops
 
 export const MINIBOSSES = [
-  // level sets speed and attack rate (like a run boss Mk-level); hp is fixed. All enrage at half health.
+  // level sets speed and attack rate (like a run boss Mk-level); hp is fixed. No enrage phase.
   { id: 'sawjaw', desc: 'A chainsaw-jawed scrap hound.', reward: 'scatter', bounty: 300, req: null, level: 3, hp: 61 },
   { id: 'warden', desc: 'Teleporting coil sentinel.', reward: 'arc', bounty: 400, req: 'sawjaw', level: 4, hp: 135 },
   { id: 'ronin', desc: 'Blade-master of the undercity.', reward: 'disc', bounty: 500, req: 'warden', level: 5, hp: 175 },
