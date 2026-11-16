@@ -221,7 +221,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
       this.actUpdate?.(dt, p);
       if (this.timer <= 0) {
         this.actUpdate = null;
-        this.state = 'idle'; this.timer = (this.mini ? 850 : 1100) * this.cdMul + Math.random() * 400;
+        this.state = 'idle'; this.timer = (this.mini?.idle ?? 1100) * this.cdMul + Math.random() * 400;
         if (this.cfg.flying) b.setVelocity(0, 0); else b.setVelocityX(0);
       }
     }
