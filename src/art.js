@@ -327,6 +327,65 @@ function drawSky(ctx, W, H) {
   // smog bands
   ctx.fillStyle = 'rgba(40,10,40,0.35)'; ctx.fillRect(0, 168, W, 6); ctx.fillRect(0, 186, W, 3);
 }
+function drawXmasSky(ctx, W, H) {
+  const stops = ['#04040f', '#070a1c', '#0a1028', '#0d1634', '#111c40', '#16244a', '#1b2c52', '#22355a', '#2c4062', '#3a4e6c'];
+  const band = Math.ceil(H / stops.length);
+  for (let i = 0; i < stops.length; i++) {
+    R(ctx, stops[i], 0, i * band, W, band);
+    if (i < stops.length - 1) for (let y = 0; y < 3; y++) for (let x = (y % 2); x < W; x += 2) R(ctx, stops[i + 1], x, (i + 1) * band - 3 + y, 1, 1);
+  }
+  // aurora ribbons
+  for (let k = 0; k < 3; k++) {
+    const col = ['rgba(90,255,170,', 'rgba(61,245,255,', 'rgba(157,255,61,'][k];
+    for (let x = 0; x < W; x++) {
+      const y0 = 38 + k * 14 + Math.sin(x / (38 + k * 9) + k) * 10 + Math.sin(x / 13 + k * 2) * 3;
+      for (let d = 0; d < 18; d++) { const a = (1 - d / 18) * 0.16; ctx.fillStyle = col + a.toFixed(3) + ')'; ctx.fillRect(x, Math.round(y0 + d), 1, 1); }
+    }
+  }
+  const r = rng(12);
+  for (let i = 0; i < 120; i++) R(ctx, r() > 0.75 ? P.white : P.m5, Math.floor(r() * W), Math.floor(r() * H * 0.5), 1, 1);
+  // full moon
+  const cx = 340, cy = 112, rad = 34;
+  for (let y = -rad; y <= rad; y++) { const half = Math.floor(Math.sqrt(rad * rad - y * y)); R(ctx, y < -rad / 3 ? '#f4f8ff' : y < rad / 3 ? '#e2ecff' : '#c8d8f4', cx - half, cy + y, half * 2, 1); }
+  [[-12, -8, 6], [10, 4, 8], [-4, 16, 4], [14, -16, 3]].forEach(([dx, dy, cr]) => { for (let y = -cr; y <= cr; y++) { const h = Math.floor(Math.sqrt(cr * cr - y * y)); R(ctx, '#b4c6e8', cx + dx - h, cy + dy + y, h * 2, 1); } });
+  // drone sleigh crossing the moon (silhouette)
+  const sx = 300, sy = 104;
+  for (let i = 0; i < 4; i++) { const dx = sx + i * 13; R(ctx, '#0a1028', dx, sy, 8, 3); R(ctx, '#0a1028', dx + 6, sy - 3, 2, 3); R(ctx, '#0a1028', dx + 1, sy + 3, 1, 3); R(ctx, '#0a1028', dx + 6, sy + 3, 1, 3); R(ctx, '#ff4a3d', dx + 7, sy - 4, 1, 1); }
+  R(ctx, '#0a1028', sx + 54, sy - 1, 14, 6); R(ctx, '#0a1028', sx + 52, sy + 5, 18, 1); R(ctx, '#0a1028', sx + 60, sy - 4, 5, 3);
+  ctx.fillStyle = 'rgba(10,16,40,0.6)'; for (let i = 0; i < 52; i += 2) ctx.fillRect(sx + 8 + i, sy + 1, 1, 1);
+  // haze
+  ctx.fillStyle = 'rgba(60,90,140,0.18)'; ctx.fillRect(0, 168, W, 6); ctx.fillRect(0, 186, W, 3);
+}
+// Copy a skyline texture and dust its rooftops with snow; optionally string Christmas lights between buildings.
+function snowyCopy(scene, src, key, garlands) {
+  const img = scene.textures.get(src).getSourceImage(), w = img.width, h = img.height;
+  const t = scene.textures.createCanvas(key, w, h), c = t.getContext();
+  c.drawImage(img, 0, 0);
+  const d = c.getImageData(0, 0, w, h).data, tops = [];
+  for (let x = 0; x < w; x++) { let y = 0; while (y < h && d[(y * w + x) * 4 + 3] < 40) y++; tops.push(y < h ? y : null); }
+  tops.forEach((y, x) => { if (y === null) return; R(c, '#f4f8ff', x, y, 1, 2); if (x % 3 === 0) R(c, '#c4dcff', x, y + 2, 1, 1); });
+  if (garlands) {
+    const bulbs = [P.red, P.lime, P.amber, P.cyan, P.mag];
+    let n = 0;
+    for (let x = 6; x < w - 40; x += 34 + (x * 7) % 19) {
+      const x2 = x + 26 + (x % 11), ya = tops[x], yb = tops[x2];
+      if (ya === null || yb === null) continue;
+      const sag = 7 + (x % 5);
+      for (let i = 0; i <= x2 - x; i++) {
+        const tt = i / (x2 - x), yy = Math.round(ya + 3 + (yb - ya) * tt + Math.sin(tt * Math.PI) * sag);
+        R(c, 'rgba(20,20,40,0.9)', x + i, yy, 1, 1);
+        if (i % 4 === 2) { R(c, bulbs[n++ % bulbs.length], x + i, yy + 1, 1, 2); }
+      }
+    }
+    // a neon star on the tallest rooftops
+    for (let x = 4; x < w - 4; x++) {
+      const y = tops[x]; if (y === null || y > 40) continue;
+      if (tops[x - 3] !== null && tops[x - 3] <= y) continue;
+      R(c, P.amberL, x, y - 6, 1, 5); R(c, P.amberL, x - 2, y - 4, 5, 1); R(c, P.amber, x - 1, y - 5, 3, 3); x += 30;
+    }
+  }
+  t.refresh();
+}
 function drawSkyline(ctx, W, H, seed, cols, windows, minH, maxH) {
   const r = rng(seed);
   let x = 0;
@@ -516,6 +575,11 @@ export function buildArt(scene) {
   single(scene, 'bg_far', 512, 190, c => drawSkyline(c, 512, 190, 11, ['#2a1038', '#3d1a4e'], true, 60, 170));
   single(scene, 'bg_mid', 512, 170, c => drawMid(c, 512, 170));
   single(scene, 'fog', 16, 60, c => { for (let y = 0; y < 60; y++) { c.fillStyle = `rgba(150,50,90,${(y / 60) * 0.28})`; c.fillRect(0, y, 16, 1); } });
+  // December: festive night sky (moon, aurora, drone sleigh) and snowy skylines with garlands
+  single(scene, 'bg_sky_xmas', VW, 270, c => drawXmasSky(c, VW, 270));
+  snowyCopy(scene, 'bg_far', 'bg_far_xmas', false);
+  snowyCopy(scene, 'bg_mid', 'bg_mid_xmas', true);
+  single(scene, 'fog_xmas', 16, 60, c => { for (let y = 0; y < 60; y++) { c.fillStyle = `rgba(170,210,255,${(y / 60) * 0.22})`; c.fillRect(0, y, 16, 1); } });
   single(scene, 'vignette', VW, 270, c => {
     const g = c.createRadialGradient(VW / 2, 135, 110, VW / 2, 135, 300 + (VW - 480) / 2);
     g.addColorStop(0, 'rgba(5,3,10,0)'); g.addColorStop(1, 'rgba(5,3,10,0.65)');

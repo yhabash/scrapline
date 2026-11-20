@@ -7,7 +7,7 @@ import { Player, Enemy, Boss } from '../entities.js';
 import { MAPS, ALL_MAPS, mapPool, pickMap, seededRandom } from '../maps.js';
 import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, loadSave } from '../data.js';
 import { OX, roomSides } from '../ui.js';
-import { W, H, txt, cityBackdrop, ashFall, glow, fmt, COL } from '../ui.js';
+import { W, H, txt, cityBackdrop, ashFall, snowFall, hatOn, glow, fmt, COL } from '../ui.js';
 import { TouchControls } from '../touch.js';
 import { sfx, playMusic, setStorm, stopStorm } from '../audio.js';
 
@@ -47,8 +47,8 @@ export default class Run extends Phaser.Scene {
 
     // ----- backdrop
     if (this.mode === 'training') { roomSides(this); this.add.image(OX, 0, 'bg_training').setOrigin(0).setScrollFactor(0).setDepth(-10); }
-    else this.backdrop = cityBackdrop(this, true, this.map.theme);
-    if (this.xmas) this.snowFall(); else ashFall(this, 4);
+    else this.backdrop = cityBackdrop(this, true, this.map.theme, this.xmas);
+    if (this.xmas) snowFall(this); else ashFall(this, 4);
 
     // ----- physics groups
     this.solids = this.physics.add.staticGroup();
@@ -63,6 +63,7 @@ export default class Run extends Phaser.Scene {
     this.crates = this.physics.add.group({ allowGravity: false });
 
     this.player = new Player(this, 60, GY - 2);
+    if (this.xmas) hatOn(this, this.player, { dx: -1, dy: 4 });
 
     const P = this.physics;
     P.add.collider(this.player, this.solids);
@@ -161,15 +162,6 @@ export default class Run extends Phaser.Scene {
       const g = this.track(glow(this, tx, top - 16, COL.lime, 1.6, 0.22).setDepth(8));
       this.tweens.add({ targets: [tree, g], alpha: '-=0.2', duration: 900 + Math.floor(this.decor() * 600), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
-  }
-  snowFall() {
-    // two layers: small slow flakes far away, bigger faster ones close up
-    const flakes = (depth, scale, speed, freq, alpha) => this.add.particles(0, 0, 'px', {
-      x: { min: -40, max: W + 120 }, y: -6, lifespan: 9000, speedY: speed, speedX: { min: -14, max: 6 },
-      scale, alpha: { start: alpha, end: alpha * 0.4 }, tint: [0xffffff, 0xe8f4ff, 0xc4feff], frequency: freq,
-    }).setScrollFactor(0).setDepth(depth);
-    flakes(4, { min: 0.5, max: 0.9 }, { min: 14, max: 26 }, 70, 0.7);
-    flakes(30, { min: 1, max: 1.6 }, { min: 28, max: 44 }, 160, 0.9);
   }
   hang(x, top, bottom, w) {
     this.track(this.add.tileSprite(x, top, w, bottom - top - 16, 'tile_tower').setOrigin(0).setDepth(10));

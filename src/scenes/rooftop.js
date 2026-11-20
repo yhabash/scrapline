@@ -1,10 +1,12 @@
 // The animated rooftop scene behind the main menu and the other menu screens.
 import Phaser from 'phaser';
-import { W, H, cityBackdrop, ashFall, glow, COL } from '../ui.js';
+import { W, H, cityBackdrop, ashFall, snowFall, hatOn, glow, COL } from '../ui.js';
+import { isChristmas } from '../maps.js';
 
 export function drawRooftop(scene, { heroX = 326, dim = 0 } = {}) {
   const before = new Set(scene.children.list);
-  const bd = cityBackdrop(scene);
+  const xmas = isChristmas();
+  const bd = cityBackdrop(scene, true, null, xmas);
   const RX = 250, RY = 206;
   scene.add.image(RX + 110, RY - 40, 'billboard').setOrigin(0.5, 1);
   const bb = glow(scene, RX + 110, RY - 66, COL.mag, 3.2, 0.35);
@@ -16,6 +18,16 @@ export function drawRooftop(scene, { heroX = 326, dim = 0 } = {}) {
   scene.add.tileSprite(RX, RY, W - RX, 16, 'tile_top').setOrigin(0);
   scene.add.tileSprite(RX, RY + 16, W - RX, H - RY - 16, 'tile_tower').setOrigin(0);
   scene.add.tileSprite(RX, RY - 12, W - RX, 12, 'railing').setOrigin(0).setAlpha(0.9);
+  if (xmas) {
+    scene.add.tileSprite(RX, RY - 3, W - RX, 5, 'snowcap').setOrigin(0);
+    const a = scene.add.tileSprite(RX + 1, RY - 12, W - RX - 2, 7, 'xlights_a').setOrigin(0);
+    const b = scene.add.tileSprite(RX + 1, RY - 12, W - RX - 2, 7, 'xlights_b').setOrigin(0).setAlpha(0);
+    b.tilePositionX = 4;
+    scene.time.addEvent({ delay: 450, loop: true, callback: () => { const on = b.alpha === 0; a.setAlpha(on ? 0.35 : 1); b.setAlpha(on ? 1 : 0); } });
+    const tree = scene.add.image(RX + 124, RY - 1, 'holo_tree').setOrigin(0.5, 1).setAlpha(0.9).setBlendMode(Phaser.BlendModes.ADD);
+    const tg = glow(scene, RX + 124, RY - 16, COL.lime, 1.8, 0.25);
+    scene.tweens.add({ targets: [tree, tg], alpha: '-=0.25', duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
   scene.add.image(RX + 160, RY, 'ac_unit').setOrigin(0.5, 1);
   scene.add.image(RX + 214, RY, 'vent_pipe').setOrigin(0.5, 1);
   scene.add.particles(RX + 214, RY - 30, 'smoke', {
@@ -24,7 +36,7 @@ export function drawRooftop(scene, { heroX = 326, dim = 0 } = {}) {
   });
   const hero = scene.add.sprite(heroX, RY, 'merc', 0).setOrigin(0.5, 1);
   hero.play('merc_idle');
-  ashFall(scene, 3);
+  if (xmas) { hatOn(scene, hero, { dx: -1, dy: 4 }); snowFall(scene, 2, 3); } else ashFall(scene, 3);
   scene.add.image(0, 0, 'vignette').setOrigin(0);
   if (dim) scene.add.rectangle(0, 0, W, H, 0x05030a, dim).setOrigin(0);
   // pinned to the screen, so menus laid out at 480 wide can be centred with the camera (see centerLayout)
