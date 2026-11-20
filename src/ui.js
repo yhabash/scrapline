@@ -112,12 +112,13 @@ export class FocusNav {
 }
 
 // Parallax city backdrop used by the menu and the run.
-export function cityBackdrop(scene, fixed = true, theme = null) {
-  const sky = scene.add.image(0, 0, 'bg_sky').setOrigin(0).setScrollFactor(0).setDepth(-10);
-  const far = scene.add.tileSprite(0, 80, W, 190, 'bg_far').setOrigin(0).setScrollFactor(0).setDepth(-9);
-  const mid = scene.add.tileSprite(0, 100, W, 170, 'bg_mid').setOrigin(0).setScrollFactor(0).setDepth(-8);
-  const fog = scene.add.tileSprite(0, 170, W, 60, 'fog').setOrigin(0).setScrollFactor(0).setDepth(-7);
-  if (theme) { sky.setTint(theme.sky); far.setTint(theme.far); mid.setTint(theme.mid); fog.setTint(theme.fog); }
+export function cityBackdrop(scene, fixed = true, theme = null, xmas = false) {
+  const k = xmas ? '_xmas' : '';
+  const sky = scene.add.image(0, 0, 'bg_sky' + k).setOrigin(0).setScrollFactor(0).setDepth(-10);
+  const far = scene.add.tileSprite(0, 80, W, 190, 'bg_far' + k).setOrigin(0).setScrollFactor(0).setDepth(-9);
+  const mid = scene.add.tileSprite(0, 100, W, 170, 'bg_mid' + k).setOrigin(0).setScrollFactor(0).setDepth(-8);
+  const fog = scene.add.tileSprite(0, 170, W, 60, 'fog' + k).setOrigin(0).setScrollFactor(0).setDepth(-7);
+  if (theme) { if (!xmas) sky.setTint(theme.sky); far.setTint(theme.far); mid.setTint(theme.mid); fog.setTint(theme.fog); }
   return {
     update(camX, camY = 0) {
       far.tilePositionX = camX * 0.12; mid.tilePositionX = camX * 0.3;
@@ -126,6 +127,25 @@ export function cityBackdrop(scene, fixed = true, theme = null) {
   };
 }
 
+// Falling snow (two layers: small far flakes behind, bigger near flakes in front at frontDepth).
+export function snowFall(scene, backDepth = 4, frontDepth = 30) {
+  const flakes = (depth, scale, speed, freq, alpha) => scene.add.particles(0, 0, 'px', {
+    x: { min: -40, max: W + 120 }, y: -6, lifespan: 9000, speedY: speed, speedX: { min: -14, max: 6 },
+    scale, alpha: { start: alpha, end: alpha * 0.4 }, tint: [0xffffff, 0xe8f4ff, 0xc4feff], frequency: freq,
+  }).setScrollFactor(0).setDepth(depth);
+  return [flakes(backDepth, { min: 0.5, max: 0.9 }, { min: 14, max: 26 }, 70, 0.7), flakes(frontDepth, { min: 1, max: 1.6 }, { min: 28, max: 44 }, 160, 0.9)];
+}
+// A Santa hat that follows a sprite (origin bottom-centre). dy moves it down onto the head.
+export function hatOn(scene, sprite, { dx = -1, dy = 4, depth = sprite.depth + 1, scale = 1 } = {}) {
+  const hat = scene.add.image(sprite.x, sprite.y, 'santa_hat').setOrigin(0.5, 1).setDepth(depth).setScale(scale);
+  const sync = () => {
+    if (!sprite.active) { hat.destroy(); scene.events.off('postupdate', sync); return; }
+    const f = sprite.flipX ? -1 : 1;
+    hat.setPosition(sprite.x + dx * f, sprite.y - sprite.displayHeight * sprite.originY + dy).setFlipX(sprite.flipX).setVisible(sprite.visible).setScrollFactor(sprite.scrollFactorX, sprite.scrollFactorY);
+  };
+  scene.events.on('postupdate', sync); sync();
+  return hat;
+}
 // Falling ash particles across the screen.
 export function ashFall(scene, depth = 5) {
   return scene.add.particles(0, 0, 'px', {

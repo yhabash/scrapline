@@ -1,6 +1,6 @@
 // Game data: weapons, enemies, bosses, specimens, achievements, supply drops, and the save file.
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 
 export const WEAPONS = {
   pistol: { name: 'Scrap Pistol', desc: 'Reliable sidearm. Steady fire.', rate: 260, dmg: 1, speed: 440, spread: 2, pellets: 1, tex: 'b_pistol', life: 900, unlock: 'Starting weapon' },
@@ -38,7 +38,7 @@ export const MINIBOSSES = [
   // idle = base pause between attacks in ms (run bosses use 1100).
   { id: 'sawjaw', desc: 'A chainsaw-jawed scrap hound.', reward: 'scatter', bounty: 300, req: null, level: 3, hp: 61, idle: 850 },
   { id: 'warden', desc: 'Teleporting coil sentinel.', reward: 'arc', bounty: 400, req: 'sawjaw', level: 3, hp: 80, idle: 1100 },
-  { id: 'ronin', desc: 'Blade-master of the undercity.', reward: 'disc', bounty: 500, req: 'warden', level: 4, hp: 95, idle: 1100 },
+  { id: 'ronin', desc: 'Blade-master of the undercity.', reward: 'disc', bounty: 500, req: 'warden', level: 4, hp: 85, idle: 1100 },
 ];
 
 // Training room: captured specimens. Buy once, practice forever.

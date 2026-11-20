@@ -2,7 +2,7 @@ import { playMusic } from '../audio.js';
 // Results after a run or an arena fight. Banks bounty, records stats, awards achievements and unlocks.
 import Phaser from 'phaser';
 import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
-import { MAPS } from '../maps.js';
+import { ALL_MAPS } from '../maps.js';
 import { BOSSES, MINIBOSSES, WEAPONS, loadSave, writeSave, applyResults } from '../data.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
 import { submitScore, rememberEntry } from '../net.js';
@@ -47,7 +47,7 @@ export default class GameOver extends Phaser.Scene {
 
     const rows = [];
     if (r.mode === 'run') {
-      rows.push(['MAP', (MAPS.find(m => m.id === r.map)?.name || '-') + '  #' + r.map], ['DISTANCE', fmt(r.distance) + 'm'], ['ROBOTS DESTROYED', fmt(r.kills)], ['BOSSES DEFEATED', fmt(r.bosses)], ['SCORE', fmt(r.score)]);
+      rows.push(['MAP', (ALL_MAPS.find(m => m.id === r.map)?.name || '-') + '  #' + r.map], ['DISTANCE', fmt(r.distance) + 'm'], ['ROBOTS DESTROYED', fmt(r.kills)], ['BOSSES DEFEATED', fmt(r.bosses)], ['SCORE', fmt(r.score)]);
     } else {
       rows.push(['OPPONENT', BOSSES[r.boss].name], ['ROBOTS DESTROYED', fmt(r.kills)]);
     }

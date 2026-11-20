@@ -4,6 +4,7 @@ import { H, centerLayout, txt, panel, Button, FocusNav, COL } from '../ui.js';
 const W = 480; // laid out at 480 wide, centred with centerLayout()
 import { drawRooftop, transitionTo } from './rooftop.js';
 import { getSettings, setSetting, toggleMute, playMusic, sfx } from '../audio.js';
+import { isProductionHost, isChristmas, setXmasPreview } from '../maps.js';
 
 export default class Settings extends Phaser.Scene {
   constructor() { super('Settings'); }
@@ -40,8 +41,15 @@ export default class Settings extends Phaser.Scene {
     const mute = new Button(this, 216, 128, 128, 16, '', () => { toggleMute(); mute.setLabel(getSettings().muted ? 'OFF' : 'ON'); }, { nav, color: COL.m4 });
     mute.setLabel(getSettings().muted ? 'OFF' : 'ON');
     txt(this, W / 2, 158, 'Press M anytime to mute or unmute.', { center: true, color: '#575177' });
-    const back = new Button(this, W / 2 - 50, 192, 100, 20, '< BACK', () => transitionTo(this, 'Menu'), { nav, color: COL.m4 });
-    nav.set([...rows, mute, back]);
+    const extra = [];
+    if (!isProductionHost()) {
+      // staging only: preview the December Christmas maps and menu
+      txt(this, 110, 175, 'XMAS PREVIEW', { color: '#9dff3d' });
+      const xm = new Button(this, 216, 170, 128, 16, '', () => { setXmasPreview(!isChristmas()); this.scene.restart(); }, { nav, color: COL.m4 });
+      xm.setLabel(isChristmas() ? 'ON' : 'OFF'); extra.push(xm);
+    }
+    const back = new Button(this, W / 2 - 50, isProductionHost() ? 192 : 204, 100, 20, '< BACK', () => transitionTo(this, 'Menu'), { nav, color: COL.m4 });
+    nav.set([...rows, mute, ...extra, back]);
     this.cameras.main.fadeIn(250);
   }
 }

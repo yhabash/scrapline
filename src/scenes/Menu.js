@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { W, H, txt, fmt, COL } from '../ui.js';
 import { loadSave, VERSION } from '../data.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
+import { isChristmas } from '../maps.js';
 import { isTouchDevice } from '../touch.js';
 import { FONT_H } from '../fonts.js';
 import { sfx, playMusic } from '../audio.js';
@@ -20,6 +21,10 @@ export default class Menu extends Phaser.Scene {
     logo.setStroke('#a3195a', 4).setShadow(0, 0, '#ff3d8b', 8, false, true);
     this.tweens.add({ targets: logo, alpha: 0.82, duration: 90, yoyo: true, repeat: -1, repeatDelay: 3200 });
     txt(this, 26, 72, 'BOUNTY HUNTER OF THE WASTES', { color: '#ffe4a8' });
+    if (isChristmas()) {
+      const g = txt(this, 26, 84, '* MERRY SCRAPMAS *', { color: '#9dff3d' });
+      this.tweens.add({ targets: g, alpha: 0.55, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
 
     const trainingOpen = save.stats.runs >= 1;
     const items = [
