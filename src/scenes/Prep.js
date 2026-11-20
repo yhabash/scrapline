@@ -14,7 +14,7 @@ export default class Prep extends Phaser.Scene {
 
   create() {
     centerLayout(this);
-    this._leaving = false; this.armed = null;
+    this._leaving = false; this.armed = null; this.heatSel = []; // Heat is bought per run, so it starts off every time
     this.save = loadSave();
     this.isRun = (this.next.data?.mode || 'run') === 'run';
     drawRooftop(this, { dim: 0.55 });
@@ -41,7 +41,7 @@ export default class Prep extends Phaser.Scene {
 
     // ---- heat (run only)
     const hx = 248;
-    txt(this, hx, 40, this.isRun ? 'HEAT  (harder run, bigger score)' : 'HEAT applies to runs only', { color: '#8a84ad' });
+    txt(this, hx, 40, this.isRun ? 'HEAT  (pay per run, bigger score)' : 'HEAT applies to runs only', { color: '#8a84ad' });
     this.heatRows = HEAT.map((h, i) => {
       const y = 52 + i * 20;
       const b = new Button(this, hx, y, 204, 18, '', () => this.pickHeat(h.id), { nav, color: COL.m3 });
@@ -79,15 +79,18 @@ export default class Prep extends Phaser.Scene {
       b.tag.setText(sel ? 'SELECTED' : owned ? 'OWNED' : fmt(cost)).setColor(sel ? '#9dff3d' : owned ? '#3df5ff' : s.bounty >= cost ? '#ffe4a8' : '#8a84ad');
     });
     this.heatRows.forEach(b => {
-      const h = HEAT.find(x => x.id === b.heatId), owned = s.heatOwned.includes(h.id), on = s.heatOn.includes(h.id);
-      b.color = !this.isRun ? COL.m2 : on ? COL.amber : owned ? COL.cyan : COL.m3; b.draw();
-      b.nameT.setColor(!this.isRun ? '#575177' : owned ? '#ffffff' : '#8a84ad');
-      b.state.setText(owned ? (on ? 'ON' : 'OFF') : fmt(h.cost)).setColor(on ? '#ffb03d' : owned ? '#8a84ad' : s.bounty >= h.cost ? '#ffe4a8' : '#575177');
+      const h = HEAT.find(x => x.id === b.heatId), on = this.heatSel.includes(h.id);
+      b.color = !this.isRun ? COL.m2 : on ? COL.amber : COL.m3; b.draw();
+      b.nameT.setColor(!this.isRun ? '#575177' : on ? '#ffffff' : '#c9c5e3');
+      b.state.setText(fmt(h.cost)).setColor(on ? '#ffb03d' : '#8a84ad');
       b.state.setX(Math.round(b.x + 198 - b.state.width));
     });
-    const m = heatMult(s.heatOn);
-    this.multT.setText(this.isRun ? 'SCORE x' + m.toFixed(2) : ''); this.multT.setX(Math.round(W / 2 - this.multT.width / 2));
+    const m = heatMult(this.heatSel), cost = this.heatCost();
+    this.multT.setText(this.isRun ? 'SCORE x' + m.toFixed(2) + (cost ? '   COST ' + fmt(cost) : '') : '');
+    this.multT.setColor(cost > s.bounty ? '#ff4a3d' : '#ffb03d');
+    this.multT.setX(Math.round(W / 2 - this.multT.width / 2));
   }
+  heatCost() { return HEAT.filter(h => this.heatSel.includes(h.id)).reduce((a, h) => a + h.cost, 0); }
 
   describeHero(id) {
     const h = HEROES[id], owned = this.save.heroes.includes(id);
@@ -95,9 +98,9 @@ export default class Prep extends Phaser.Scene {
     this.detail2.setText(owned ? '' : this.armed === 'hero:' + id ? 'Press again to buy for ' + fmt(h.cost) + ' bounty.' : 'Costs ' + fmt(h.cost) + ' bounty.');
   }
   describeHeat(id) {
-    const h = HEAT.find(x => x.id === id), owned = this.save.heatOwned.includes(id);
+    const h = HEAT.find(x => x.id === id);
     this.detail.setText(h.name + ': ' + h.desc + '  Score +' + Math.round(h.bonus * 100) + '%.');
-    this.detail2.setText(owned ? '' : this.armed === 'heat:' + id ? 'Press again to unlock for ' + fmt(h.cost) + ' bounty.' : 'Unlock once for ' + fmt(h.cost) + ' bounty.');
+    this.detail2.setText(fmt(h.cost) + ' bounty for one run, paid when you deploy. Switches off after the run.');
   }
 
   // first press on something locked asks; the second press buys it (if there is enough bounty)
@@ -118,15 +121,19 @@ export default class Prep extends Phaser.Scene {
   }
   pickHeat(id) {
     if (!this.isRun) return;
-    const s = this.save, b = this.heatRows.find(r => r.heatId === id), h = HEAT.find(x => x.id === id);
-    if (!s.heatOwned.includes(id)) {
-      this.buy('heat:' + id, h.cost, () => { s.heatOwned.push(id); s.heatOn.push(id); }, b.x + 100, b.y + 9);
-    } else {
-      s.heatOn = s.heatOn.includes(id) ? s.heatOn.filter(x => x !== id) : [...s.heatOn, id];
-      writeSave(s); sfx('uiSelect');
-    }
-    this.refresh(); this.describeHeat(id);
+    this.heatSel = this.heatSel.includes(id) ? this.heatSel.filter(x => x !== id) : [...this.heatSel, id];
+    sfx('uiSelect'); this.refresh(); this.describeHeat(id);
   }
-  go() { transitionTo(this, this.next.scene, this.next.data); }
+  go() {
+    const cost = this.isRun ? this.heatCost() : 0;
+    if (cost > this.save.bounty) {
+      sfx('uiDenied'); this.detail.setText('Not enough bounty for this Heat: it costs ' + fmt(cost) + ', you have ' + fmt(this.save.bounty) + '.');
+      this.detail2.setText('Switch some Heat off, or deploy without it.'); return;
+    }
+    if (cost) { this.save.bounty -= cost; writeSave(this.save); sfx('buy'); }
+    const data = { ...(this.next.data || {}) };
+    if (this.isRun) data.heat = [...this.heatSel];
+    transitionTo(this, this.next.scene, data);
+  }
   back() { transitionTo(this, 'Loadout', { next: this.next }); }
 }

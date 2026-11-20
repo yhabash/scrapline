@@ -70,7 +70,7 @@ export const DECOR = [
 ];
 
 // Heat: optional modifiers chosen before a run. Each makes the run harder and raises the SCORE multiplier
-// (bounty is not affected). Each one is unlocked once with bounty. Shown on the leaderboard.
+// (bounty is not affected). Each one costs bounty for a single run (paid at deploy). Shown on the leaderboard.
 export const HEAT = [
   { id: 'one', name: 'ONE HEART', desc: 'Start with a single heart.', bonus: 0.5, cost: 2000, color: 0xff3d8b },
   { id: 'storm', name: 'FAST STORM', desc: 'The scrap storm moves 30% faster.', bonus: 0.25, cost: 800, color: 0xc9c5e3 },
@@ -119,7 +119,7 @@ const KEY = 'scrapline_save_v1';
 export function defaultSave() {
   return {
     bounty: 0, weapons: ['pistol'], equipped: 'pistol', specimens: {}, achievements: {}, mini: {},
-    heroes: ['merc'], hero: 'merc', heatOwned: [], heatOn: [], decor: {},
+    heroes: ['merc'], hero: 'merc', decor: {},
     stats: { kills: 0, bosses: 0, runs: 0, bestScore: 0, bestDistance: 0, bestKills: 0, bestBosses: 0 },
   };
 }
@@ -133,7 +133,6 @@ export function loadSave() {
     s.weapons = [...new Set(s.weapons.map(w => (w === 'blade' ? 'disc' : w)))];
     if (s.equipped === 'blade') s.equipped = 'disc';
     if (!s.heroes.includes(s.hero)) s.hero = 'merc';
-    s.heatOn = s.heatOn.filter(id => s.heatOwned.includes(id));
     return s;
   } catch (e) { return defaultSave(); }
 }

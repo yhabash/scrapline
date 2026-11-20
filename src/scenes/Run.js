@@ -22,6 +22,7 @@ export default class Run extends Phaser.Scene {
     this.bossId = data.boss || null;
     this.mapId = data.map || null;
     this.specimen = data.specimen || null;
+    this.heatIds = this.mode === 'run' && Array.isArray(data.heat) ? data.heat : []; // paid for this run only
   }
 
   create() {
@@ -31,7 +32,6 @@ export default class Run extends Phaser.Scene {
     // hero (bought with bounty) and Heat (run-only modifiers that raise the score multiplier)
     this.heroId = this.save.heroes.includes(this.save.hero) ? this.save.hero : 'merc';
     this.hero = HEROES[this.heroId];
-    this.heatIds = this.mode === 'run' ? this.save.heatOn.filter(id => this.save.heatOwned.includes(id)) : [];
     this.heat = (id) => this.heatIds.includes(id);
     this.scoreMul = heatMult(this.heatIds);
     this.fireCdMul = this.heat('trigger') ? 1 / 1.4 : 1;
