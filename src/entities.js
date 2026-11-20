@@ -335,6 +335,11 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
         if (!this.active || this.dying) return;
         const A = this.A;
         if (this.cfg.flying) { this.x = Phaser.Math.Between(A.left + 60, A.right - 60); this.y = Phaser.Math.Between(A.top + 30, A.top + 90); }
+        else if (this.mini && this.id === 'ronin') {
+          // Ronin reappears at mid range (not the far wall), so short-range guns can still reach him
+          const d = Phaser.Math.Between(150, 210), roomR = A.right - 40 - p.x, roomL = p.x - (A.left + 40);
+          this.x = roomR >= roomL ? Math.min(A.right - 40, p.x + d) : Math.max(A.left + 40, p.x - d);
+        }
         else { this.x = p.x > (A.left + A.right) / 2 ? A.left + 50 : A.right - 50; }
         this.scene.tweens.add({ targets: this, alpha: 1, duration: 200, onComplete: () => { this.p_spray(this.scene.player); if (this.mini && this.id === 'warden') this.scene.time.delayedCall(250, () => { if (this.active && !this.dying) this.p_orbs(); }); } });
         this.timer = 900;
