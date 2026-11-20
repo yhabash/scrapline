@@ -1,9 +1,9 @@
 // Global leaderboards: all-time and this week (resets every Monday 00:00 UTC).
 import Phaser from 'phaser';
-import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
+import { W, H, txt, panel, Button, FocusNav, COL, fmt, fmtTime } from '../ui.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
 import { fetchBoard, myEntries } from '../net.js';
-import { HEAT_IDS, HEROES, heatMult } from '../data.js';
+import { HEAT_IDS, HEROES, heatMult, dailyKeyOffset } from '../data.js';
 import { playMusic } from '../audio.js';
 
 const PER_PAGE = 10;
@@ -21,11 +21,12 @@ export default class Leaderboard extends Phaser.Scene {
     this.weekT = txt(this, W - 28, 23, '', { right: true, color: '#575177' });
 
     const nav = this.nav = new FocusNav(this, () => this.leave());
-    this.tabAll = new Button(this, 28, 38, 90, 16, 'ALL-TIME', () => this.show('all'), { nav, color: COL.amber });
-    this.tabWeek = new Button(this, 122, 38, 90, 16, 'THIS WEEK', () => this.show('week'), { nav, color: COL.amber });
+    this.tabs = [['all', 'ALL-TIME'], ['week', 'THIS WEEK'], ['daily', 'DAILY'], ['rush', 'BOSS RUSH']].map(([id, label], i) => {
+      const b = new Button(this, 28 + i * 94, 38, 90, 16, label, () => this.show(id), { nav, color: COL.amber }); b.boardId = id; return b;
+    });
 
     const hy = 62;
-    [['#', 34], ['NAME', 56], ['SCORE', 196], ['DIST', 250], ['BOSS', 286], ['GEAR', 330], ['HEAT', 384]].forEach(([s, x]) =>
+    this.heads = [['#', 34], ['NAME', 56], ['SCORE', 196], ['DIST', 250], ['BOSS', 286], ['GEAR', 330], ['HEAT', 384]].map(([s, x]) =>
       txt(this, x, hy, s, { color: '#575177' }));
     this.add.graphics().fillStyle(0xffb03d, 0.4).fillRect(28, hy + 11, W - 56, 1);
     this.rowsG = this.add.graphics();
@@ -46,15 +47,16 @@ export default class Leaderboard extends Phaser.Scene {
     this.prev = new Button(this, W / 2 - 110, H - 40, 50, 16, '<', () => this.flip(-1), { nav, color: COL.m4 });
     this.next = new Button(this, W / 2 + 60, H - 40, 50, 16, '>', () => this.flip(1), { nav, color: COL.m4 });
     const back = new Button(this, 28, H - 40, 70, 16, '< BACK', () => this.leave(), { nav, color: COL.m4 });
-    nav.set([this.tabAll, this.tabWeek, this.prev, this.next, back], this.board === 'week' ? 1 : 0);
+    nav.set([...this.tabs, this.prev, this.next, back], Math.max(0, this.tabs.findIndex(t => t.boardId === this.board)));
     this.show(this.board);
     this.cameras.main.fadeIn(250);
   }
   leave() { transitionTo(this, this.back); }
   async show(board) {
     this.board = board; this.page = 0;
-    this.tabAll.color = board === 'all' ? COL.amber : COL.m3; this.tabAll.draw();
-    this.tabWeek.color = board === 'week' ? COL.amber : COL.m3; this.tabWeek.draw();
+    this.tabs.forEach(t => { t.color = t.boardId === board ? COL.amber : COL.m3; t.draw(); });
+    this.heads[2].setText(board === 'rush' ? 'TIME' : 'SCORE');
+    this.heads[3].setVisible(board !== 'rush'); this.heads[4].setVisible(board !== 'rush'); this.heads[6].setVisible(board !== 'rush');
     if (this.cache[board]) { this.entries = this.cache[board].entries; this.weekLabel(this.cache[board].week); this.render(); return; }
     this.entries = []; this.render(); this.status.setText('LOADING...');
     try {
@@ -64,6 +66,7 @@ export default class Leaderboard extends Phaser.Scene {
       if (this.board !== board) return;
       this.entries = d.entries || [];
       this.weekLabel(d.week);
+      if (board === 'daily') this.loadChampion();
       const mine = this.highlight ? this.entries.findIndex(e => e.id === this.highlight) : -1;
       if (mine >= 0) this.page = Math.floor(mine / PER_PAGE);
       this.render();
@@ -72,7 +75,18 @@ export default class Leaderboard extends Phaser.Scene {
       this.status.setText(e.message.toUpperCase());
     }
   }
-  weekLabel(wk) { this.weekT.setText(this.board === 'week' && wk ? 'WEEK ' + wk.split('-W')[1] + '  -  RESETS MONDAY 00:00 UTC' : ''); this.weekT.setX(Math.round(W - 28 - this.weekT.width)); }
+  weekLabel(wk) {
+    const t = this.board === 'week' && wk ? 'WEEK ' + wk.split('-W')[1] + '  -  RESETS MONDAY 00:00 UTC'
+      : this.board === 'daily' ? (this.champ ? 'YESTERDAY\'S CHAMP: ' + this.champ + '  -  ' : '') + 'RESETS MIDNIGHT ET'
+      : this.board === 'rush' ? 'FASTEST FULL CLEAR' : '';
+    this.weekT.setText(t); this.weekT.setX(Math.round(W - 28 - this.weekT.width));
+  }
+  async loadChampion() {
+    if (this.champ !== undefined) return;
+    this.champ = null;
+    try { const y = await fetchBoard('daily', dailyKeyOffset(-1)); this.champ = y.entries?.[0]?.name || null; } catch (e) { /* no champion shown */ }
+    if (this.sys.isActive() && this.board === 'daily') this.weekLabel();
+  }
   flip(d) {
     const pages = Math.max(1, Math.ceil(this.entries.length / PER_PAGE));
     this.page = Phaser.Math.Clamp(this.page + d, 0, pages - 1);
@@ -90,9 +104,10 @@ export default class Leaderboard extends Phaser.Scene {
       if (own) this.rowsG.fillStyle(0x3df5ff, 0.12).fillRect(28, r.y - 2, W - 56, 13);
       r.rank.setText(e ? String(idx + 1) : '').setColor(col);
       r.name.setText(e ? e.name : '').setColor(col);
-      r.score.setText(e ? fmt(e.score) : '').setColor(col); r.score.setX(Math.round(242 - r.score.width));
-      r.dist.setText(e ? fmt(e.distance) + 'm' : '').setColor('#8a84ad'); r.dist.setX(Math.round(300 - r.dist.width));
-      r.bosses.setText(e ? String(e.bosses) : '').setColor('#8a84ad'); r.bosses.setX(Math.round(346 - r.bosses.width));
+      const rush = this.board === 'rush';
+      r.score.setText(e ? (rush ? fmtTime(e.score) : fmt(e.score)) : '').setColor(col); r.score.setX(Math.round(238 - r.score.width));
+      r.dist.setText(e && !rush ? fmt(e.distance) + 'm' : '').setColor('#8a84ad'); r.dist.setX(Math.round(280 - r.dist.width));
+      r.bosses.setText(e && !rush ? String(e.bosses) : '').setColor('#8a84ad'); r.bosses.setX(Math.round(306 - r.bosses.width));
       r.icon.setVisible(!!e); if (e) r.icon.setTexture('w_' + e.weapon);
       const hero = e && HEROES[e.hero] ? e.hero : 'merc';
       r.hero.setVisible(!!e); r.hero.setTint(HEROES[hero].tint);

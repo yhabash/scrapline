@@ -195,7 +195,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.extra = Math.floor((tier - 1) / 2);
     this.displayName = cfg.name + (showMk ? ' MK-' + roman(tier) : '');
     // arena mini-bosses: fixed health, no enrage phase
-    this.mini = scene.mode === 'arena' || scene.mode === 'training' ? MINIBOSSES.find(m => m.id === id) || null : null;
+    this.mini = ['arena', 'training', 'rush'].includes(scene.mode) ? MINIBOSSES.find(m => m.id === id) || null : null;
     if (this.mini) this.hp = this.hpMax = this.mini.hp;
     this.points = cfg.points * tier; this.bountyVal = cfg.bounty * tier;
     if (scene.xmas) { this.hat = scene.add.image(x, y, 'santa_hat').setOrigin(0.5, 1).setDepth(26).setScale(2); this.hatDx = 4; this.hatDy = 8; }

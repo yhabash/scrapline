@@ -1,7 +1,7 @@
 import { playMusic } from '../audio.js';
 // Results after a run or an arena fight. Banks bounty, records stats, awards achievements and unlocks.
 import Phaser from 'phaser';
-import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
+import { W, H, txt, panel, Button, FocusNav, COL, fmt, fmtTime } from '../ui.js';
 import { ALL_MAPS } from '../maps.js';
 import { BOSSES, MINIBOSSES, WEAPONS, loadSave, writeSave, applyResults } from '../data.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
@@ -34,13 +34,20 @@ export default class GameOver extends Phaser.Scene {
       writeSave(save);
     }
     const earned = applyResults(save, { ...r, bounty: r.bounty + arenaBounty });
+    if (r.daily) { // remember that you played today's daily, and your best score for it
+      const s2 = loadSave();
+      s2.dailyPlayed = { ...(s2.dailyPlayed || {}), [r.daily]: true };
+      s2.dailyBest = { ...(s2.dailyBest || {}), [r.daily]: Math.max(s2.dailyBest?.[r.daily] || 0, r.score) };
+      writeSave(s2);
+    }
 
     drawRooftop(this, { dim: 0.55 });
     playMusic('menu');
     panel(this, 60, 18, W - 120, H - 36, { border: r.mode === 'arena' && r.victory ? COL.lime : COL.mag });
 
     let title, color;
-    if (r.mode === 'run') { title = r.abandoned ? 'RUN ABANDONED' : 'RUN OVER'; color = '#ff3d8b'; }
+    if (r.mode === 'run') { title = (r.daily ? 'DAILY ' : '') + (r.abandoned ? 'RUN ABANDONED' : 'RUN OVER'); color = r.daily ? '#ffb03d' : '#ff3d8b'; }
+    else if (r.mode === 'rush') { title = r.victory ? 'BOSS RUSH CLEARED' : r.abandoned ? 'BOSS RUSH ABANDONED' : 'BOSS RUSH FAILED'; color = r.victory ? '#9dff3d' : '#ff3d8b'; }
     else if (r.victory) { title = 'TARGET ELIMINATED'; color = '#9dff3d'; }
     else { title = r.abandoned ? 'RETREATED' : 'DEFEATED'; color = '#ff3d8b'; }
     txt(this, W / 2, 30, title, { head: true, center: true, color });
@@ -50,6 +57,8 @@ export default class GameOver extends Phaser.Scene {
       rows.push(['MAP', (ALL_MAPS.find(m => m.id === r.map)?.name || '-') + '  #' + r.map], ['DISTANCE', fmt(r.distance) + 'm'], ['ROBOTS DESTROYED', fmt(r.kills)], ['BOSSES DEFEATED', fmt(r.bosses)]);
       if (r.heat?.length) rows.push(['HEAT', fmt(r.baseScore) + '  x' + r.heatMult.toFixed(2)]);
       rows.push(['SCORE', fmt(r.score)]);
+    } else if (r.mode === 'rush') {
+      rows.push(['BOSSES DEFEATED', r.bosses + ' / 6'], ['TIME', r.victory ? fmtTime(r.rushTime) : 'did not finish']);
     } else {
       rows.push(['OPPONENT', BOSSES[r.boss].name], ['ROBOTS DESTROYED', fmt(r.kills)]);
     }
@@ -57,10 +66,10 @@ export default class GameOver extends Phaser.Scene {
     rows.forEach(([k, v], i) => {
       const y = 50 + i * 12;
       txt(this, 80, y, k, { color: '#8a84ad' });
-      txt(this, W - 80, y, v, { right: true, color: k === 'SCORE' ? '#ffffff' : k === 'MAP' ? '#3df5ff' : k === 'HEAT' ? '#ffb03d' : k === 'BOUNTY BANKED' ? '#ffe4a8' : '#c9c5e3' });
+      txt(this, W - 80, y, v, { right: true, color: k === 'SCORE' || k === 'TIME' ? '#ffffff' : k === 'MAP' ? '#3df5ff' : k === 'HEAT' ? '#ffb03d' : k === 'BOUNTY BANKED' ? '#ffe4a8' : '#c9c5e3' });
     });
     let y = 50 + rows.length * 12 + 5;
-    if (r.mode === 'run' && r.score > prevBest && r.score > 0) {
+    if (r.mode === 'run' && !r.daily && r.score > prevBest && r.score > 0) {
       const nb = txt(this, W / 2, y, 'NEW PERSONAL BEST', { head: true, center: true, color: '#ffb03d' });
       this.tweens.add({ targets: nb, alpha: 0.3, duration: 400, yoyo: true, repeat: -1 });
       y += 16;
@@ -70,7 +79,7 @@ export default class GameOver extends Phaser.Scene {
       txt(this, W / 2 - 44, y, 'WEAPON UNLOCKED: ' + WEAPONS[unlock].name.toUpperCase(), { color: '#9dff3d' });
       y += 16;
     }
-    const canSubmit = r.mode === 'run' && r.score > 0;
+    const canSubmit = (r.mode === 'run' && r.score > 0) || (r.mode === 'rush' && r.victory);
     const limitY = canSubmit ? 178 : 200;
     if (earned.length) {
       txt(this, 80, y, 'ACHIEVEMENTS', { color: '#ffb03d' }); y += 12;
@@ -85,9 +94,11 @@ export default class GameOver extends Phaser.Scene {
     }
 
     const nav = new FocusNav(this, () => transitionTo(this, 'Menu'));
-    const againLabel = r.mode === 'run' ? 'RUN AGAIN' : r.victory ? 'ARENA' : 'RETRY';
+    const againLabel = r.mode === 'run' || r.mode === 'rush' ? (r.daily ? 'PLAY DAILY AGAIN' : r.mode === 'rush' ? 'RUSH AGAIN' : 'RUN AGAIN') : r.victory ? 'ARENA' : 'RETRY';
     const again = new Button(this, W / 2 - 124, H - 46, 118, 20, againLabel, () => {
-      if (r.mode === 'run') transitionTo(this, 'Run', { mode: 'run' });
+      if (r.daily) transitionTo(this, 'Run', r.runData);
+      else if (r.mode === 'rush') transitionTo(this, 'Run', { mode: 'rush' });
+      else if (r.mode === 'run') transitionTo(this, 'Run', { mode: 'run' });
       else if (r.victory) transitionTo(this, 'Arena');
       else transitionTo(this, 'Run', { mode: 'arena', boss: r.boss });
     }, { nav, color: COL.lime });
@@ -117,7 +128,7 @@ export default class GameOver extends Phaser.Scene {
     el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.repeat) this.submit(r); if (e.key === 'Escape') el.blur(); });
     this.nameDom = this.add.dom(108, y, el).setOrigin(0, 0);
     this.submitBtn = new Button(this, 212, y, 58, 15, 'SUBMIT', () => this.submit(r), { nav: this.nav, color: COL.amber });
-    this.submitMsg = txt(this, 278, y + 3, 'Global leaderboard', { color: '#575177' });
+    this.submitMsg = txt(this, 278, y + 3, r.daily ? 'Daily leaderboard' : r.mode === 'rush' ? 'Boss Rush leaderboard' : 'Global leaderboard', { color: '#575177' });
     this.nav.set([this.submitBtn, ...this.navBase]);
     this.events.once('shutdown', () => { this.nameDom?.destroy(); });
   }
@@ -130,9 +141,22 @@ export default class GameOver extends Phaser.Scene {
     this.sending = true; this.submitBtn.setEnabled(false); msg('Sending...', '#8a84ad');
     try { localStorage.setItem(NAME_KEY, name); } catch (e) { /* ignore */ }
     try {
-      const res = await submitScore({ name, score: r.score, distance: r.distance, kills: r.kills, bosses: r.bosses, weapon: r.weapon, heat: r.heat || [], hero: r.hero || 'merc' });
+      const mode = r.daily ? 'daily' : r.mode === 'rush' ? 'rush' : 'run';
+      const res = await submitScore({ name, score: mode === 'rush' ? r.rushTime : r.score, distance: r.distance, kills: r.kills, bosses: r.bosses, weapon: r.weapon, heat: r.heat || [], hero: r.hero || 'merc', mode, day: r.daily || undefined });
       if (!this.sys.isActive()) return;
       this.sent = true;
+      if (res.main) { // daily or boss rush: one board
+        const m = res.main, board = mode === 'rush' ? 'rush' : 'daily', label = mode === 'rush' ? 'BOSS RUSH #' : 'DAILY #';
+        if (m.id) rememberEntry(m.id);
+        this.nameDom.node.disabled = true;
+        if (m.kept) { sfx('uiSelect'); msg('Your best ' + (mode === 'rush' ? fmtTime(m.best) : fmt(m.best)) + ' stays', '#c9c5e3'); }
+        else if (m.rank) { sfx('victory'); msg(label + m.rank, '#9dff3d'); }
+        else { sfx('uiSelect'); msg('Not in the top 100 yet.', '#c9c5e3'); }
+        this.submitBtn.setLabel('VIEW'); this.submitBtn.setEnabled(true);
+        this.submitBtn.onClick = () => transitionTo(this, 'Leaderboard', { board, highlight: m.id || res.id });
+        this.sending = false;
+        return;
+      }
       [res.all?.id, res.weekly?.id].forEach(id => { if (id) rememberEntry(id); });
       this.nameDom.node.disabled = true;
       const a = res.all?.rank, w = res.weekly?.rank;

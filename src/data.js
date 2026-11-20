@@ -30,6 +30,8 @@ export const BOSSES = {
   ronin: { name: 'GUTTER RONIN', tex: 'boss_ronin', hp: 70, flying: false, body: [14, 26, 5, 4], patterns: ['dash', 'spray', 'teleport', 'dash'], points: 1000, bounty: 0 },
 };
 export const RUN_BOSS_CYCLE = ['crusher', 'hive', 'tank'];
+// Boss Rush: all six bosses back to back, fastest clear wins.
+export const RUSH_ORDER = ['sawjaw', 'warden', 'ronin', 'crusher', 'hive', 'tank'];
 export const BOSS_EVERY = 500; // meters between boss fights
 export const SUPPLY_EVERY = 220; // meters between supply drops
 
@@ -111,6 +113,7 @@ export const ACHIEVEMENTS = [
   { id: 'titan_breaker', name: 'Titan Breaker', desc: 'Defeat 3 bosses in one run', reward: { weapon: 'rail' }, goal: 3, run: true, prog: (s) => s.stats.bestBosses, check: (s, r) => r && r.mode === 'run' && r.bosses >= 3 },
   { id: 'long_haul', name: 'Long Haul', desc: 'Travel 1500m in one run', reward: { bounty: 400 }, goal: 1500, run: true, unit: 'm', prog: (s) => s.stats.bestDistance, check: (s, r) => r && r.mode === 'run' && r.distance >= 1500 },
   { id: 'high_roller', name: 'High Roller', desc: 'Score 15,000 in one run', reward: { bounty: 600 }, goal: 15000, run: true, prog: (s) => s.stats.bestScore, check: (s, r) => r && r.mode === 'run' && r.score >= 15000 },
+  { id: 'rush_clear', name: 'Rush Survivor', desc: 'Clear the Boss Rush', reward: { bounty: 5000 }, goal: 1, prog: (s) => (s.stats.rushClears || 0), check: (s, r) => r && r.mode === 'rush' && r.victory },
   { id: 'untouchable', name: 'Untouchable', desc: 'Beat a run boss without getting hit', reward: { bounty: 500 }, goal: 1, prog: () => 0, check: (s, r) => r && r.mode === 'run' && r.flawless },
 ];
 
@@ -142,6 +145,7 @@ export function writeSave(s) { try { localStorage.setItem(KEY, JSON.stringify(s)
 export function applyResults(save, r) {
   save.bounty += r.bounty;
   save.stats.kills += r.kills;
+  if (r.mode === 'rush' && r.victory) save.stats.rushClears = (save.stats.rushClears || 0) + 1;
   if (r.mode === 'run') {
     save.stats.runs += 1;
     save.stats.bosses += r.bosses;
@@ -163,3 +167,20 @@ export function applyResults(save, r) {
   writeSave(save);
   return earned;
 }
+
+// ---------- Daily Challenge ----------
+// The day runs midnight to midnight US Eastern time. Everyone gets the same map, weapon, hero and Heat.
+export function dailyKey(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+export function dailyKeyOffset(days) { return dailyKey(new Date(Date.now() + days * 86400000)); }
+export function dailySetup(key = dailyKey(), maps) {
+  let h = 2166136261; for (const ch of 'scrapline-daily-' + key) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const rnd = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 100000) / 100000; };
+  const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+  const map = pick(maps), weapon = pick(WEAPON_ORDER), hero = pick(HERO_ORDER);
+  const heat = [pick(HEAT_IDS)];
+  if (rnd() < 0.5) { const second = pick(HEAT_IDS.filter(x => x !== heat[0])); heat.push(second); }
+  return { key, map: map.id, mapName: map.name, weapon, hero, heat };
+}
+export const dailyReward = (rank) => (rank === 1 ? 1000 : rank === 2 ? 600 : rank === 3 ? 400 : rank <= 10 ? 250 : 100);

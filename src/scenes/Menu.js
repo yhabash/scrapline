@@ -29,6 +29,8 @@ export default class Menu extends Phaser.Scene {
     const trainingOpen = save.stats.runs >= 1;
     const items = [
       { label: 'START RUN', go: () => transitionTo(this, 'Loadout') },
+      { label: 'DAILY CHALLENGE', go: () => transitionTo(this, 'Daily') },
+      { label: 'BOSS RUSH', go: () => transitionTo(this, 'Loadout', { next: { scene: 'Run', data: { mode: 'rush' } } }) },
       { label: 'TRAINING ROOM', note: trainingOpen ? '' : 'finish a run first', enabled: trainingOpen, go: () => transitionTo(this, 'Training') },
       { label: 'MINI-BOSS ARENA', go: () => transitionTo(this, 'Arena') },
       { label: 'ACHIEVEMENTS', go: () => transitionTo(this, 'Achievements') },
@@ -53,9 +55,9 @@ export default class Menu extends Phaser.Scene {
       if (['Enter', 'Space', 'KeyJ', 'KeyX'].includes(e.code)) this.activate();
     });
 
-    this.add.sprite(26, 190, 'scrap', 0).setOrigin(0).play('scrap_spin');
-    txt(this, 37, 190, fmt(save.bounty) + ' BOUNTY', { color: '#ffe4a8' });
-    if (save.stats.bestScore) txt(this, 26, 202, 'BEST ' + fmt(save.stats.bestScore) + '  /  ' + fmt(save.stats.bestDistance) + 'm', { color: '#8a84ad' });
+    this.add.sprite(26, 218, 'scrap', 0).setOrigin(0).play('scrap_spin');
+    txt(this, 37, 218, fmt(save.bounty) + ' BOUNTY', { color: '#ffe4a8' });
+    if (save.stats.bestScore) txt(this, 26, 230, 'BEST ' + fmt(save.stats.bestScore) + '  /  ' + fmt(save.stats.bestDistance) + 'm', { color: '#8a84ad' });
     const help = isTouchDevice() ? 'Tap to choose' : 'MOVE A/D  JUMP SPACE  FIRE J or CLICK  PAUSE ESC  MUTE M';
     txt(this, 26, H - 16, help, { color: '#575177' });
     txt(this, W - 6, H - 16, 'v' + VERSION, { color: '#575177', right: true });

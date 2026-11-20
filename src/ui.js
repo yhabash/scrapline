@@ -159,4 +159,6 @@ export function glow(scene, x, y, color, scale = 1, alpha = 0.6) {
 }
 
 export function fmt(n) { return Math.floor(n).toLocaleString('en-US'); }
+// 83456 ms -> "1:23.4"
+export function fmtTime(ms) { const t = Math.max(0, ms || 0), m = Math.floor(t / 60000), sec = Math.floor(t / 1000) % 60, d = Math.floor(t / 100) % 10; return m + ':' + String(sec).padStart(2, '0') + '.' + d; }
 export { PAL };

@@ -5,9 +5,9 @@
 import Phaser from 'phaser';
 import { Player, Enemy, Boss } from '../entities.js';
 import { MAPS, ALL_MAPS, mapPool, pickMap, seededRandom } from '../maps.js';
-import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, HEROES, heatMult, loadSave } from '../data.js';
+import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUSH_ORDER, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, HEROES, heatMult, loadSave } from '../data.js';
 import { OX, roomSides } from '../ui.js';
-import { W, H, txt, cityBackdrop, ashFall, snowFall, hatOn, glow, fmt, COL } from '../ui.js';
+import { W, H, txt, cityBackdrop, ashFall, snowFall, hatOn, glow, fmt, fmtTime, COL } from '../ui.js';
 import { TouchControls } from '../touch.js';
 import { sfx, playMusic, setStorm, stopStorm } from '../audio.js';
 
@@ -22,15 +22,18 @@ export default class Run extends Phaser.Scene {
     this.bossId = data.boss || null;
     this.mapId = data.map || null;
     this.specimen = data.specimen || null;
-    this.heatIds = this.mode === 'run' && Array.isArray(data.heat) ? data.heat : []; // paid for this run only
+    this.heatIds = this.mode === 'run' && Array.isArray(data.heat) ? data.heat : []; // paid for this run (or the daily's free Heat)
+    this.daily = data.daily || null; // Daily Challenge: the day's fixed map, weapon, hero and Heat
+    this.forceWeapon = data.weapon || null; this.forceHero = data.hero || null;
+    this.runData = data;
   }
 
   create() {
     this.save = loadSave();
-    this.weaponId = this.save.weapons.includes(this.save.equipped) ? this.save.equipped : 'pistol';
+    this.weaponId = this.forceWeapon || (this.save.weapons.includes(this.save.equipped) ? this.save.equipped : 'pistol');
     this.weapon = WEAPONS[this.weaponId];
     // hero (bought with bounty) and Heat (run-only modifiers that raise the score multiplier)
-    this.heroId = this.save.heroes.includes(this.save.hero) ? this.save.hero : 'merc';
+    this.heroId = this.forceHero || (this.save.heroes.includes(this.save.hero) ? this.save.hero : 'merc');
     this.hero = HEROES[this.heroId];
     this.heat = (id) => this.heatIds.includes(id);
     this.scoreMul = heatMult(this.heatIds);
@@ -126,11 +129,12 @@ export default class Run extends Phaser.Scene {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onHidden);
       stopStorm();
     });
-    playMusic(this.mode === 'arena' ? 'boss' : 'run');
+    playMusic(this.mode === 'arena' || this.mode === 'rush' ? 'boss' : 'run');
     this.chipCombo = 0; this.chipT = 0;
 
     if (this.mode === 'arena') this.time.delayedCall(700, () => this.startBossFight(this.arena, this.bossId, MINIBOSSES.find(m => m.id === this.bossId).level, false));
     if (this.mode === 'training') this.startTraining();
+    if (this.mode === 'rush') { this.rushIdx = 0; this.rushTime = 0; this.time.delayedCall(700, () => this.nextRushBoss()); }
     if (this.mode === 'run') {
       const pool = mapPool(), n = pool.indexOf(this.map) + 1 || this.map.id;
       if (this.xmas) this.banner(this.map.name, 'Christmas map ' + n + ' of ' + pool.length + '  -  Merry scrapmas!', 0x9dff3d);
@@ -425,7 +429,8 @@ export default class Run extends Phaser.Scene {
       this.boss.flying = cfg.flying;
       this.bossHit = false;
       const sub = this.mode === 'run' ? 'BOUNTY: ' + fmt(this.boss.bountyVal) + ' credits'
-        : this.mode === 'arena' ? 'REWARD: ' + WEAPONS[MINIBOSSES.find(m => m.id === id).reward].name : 'Training specimen';
+        : this.mode === 'arena' ? 'REWARD: ' + WEAPONS[MINIBOSSES.find(m => m.id === id).reward].name
+        : this.mode === 'rush' ? 'BOSS ' + (this.rushIdx + 1) + ' OF ' + RUSH_ORDER.length : 'Training specimen';
       this.banner(this.boss.displayName, sub, COL.mag, 1600);
     });
   }
@@ -456,6 +461,17 @@ export default class Run extends Phaser.Scene {
         cam.setBounds(this.camMinX, -220, 1e7, 490);
         this.stormX = this.camMinX - 260; this.stormPaused = false;
         playMusic('run');
+      } else if (this.mode === 'rush') {
+        this.stats.bosses++; this.rushIdx++;
+        if (this.rushIdx >= RUSH_ORDER.length) {
+          this.rushDone = true;
+          this.banner('BOSS RUSH CLEARED', fmtTime(this.rushTime), COL.lime); sfx('victory');
+          this.time.delayedCall(1800, () => this.finish(true));
+        } else {
+          if (this.hp < this.maxHp) { this.hp++; this.popup(this.player.x, this.player.y - 30, '+1 HEART', '#ff3d8b'); }
+          this.banner('BOSS DOWN', (RUSH_ORDER.length - this.rushIdx) + ' to go  -  ' + fmtTime(this.rushTime), COL.amber, 1200);
+          this.time.delayedCall(1300, () => this.nextRushBoss());
+        }
       } else if (this.mode === 'arena') {
         this.banner('TARGET ELIMINATED', '', COL.lime);
         sfx('victory');
@@ -465,6 +481,12 @@ export default class Run extends Phaser.Scene {
         this.time.delayedCall(1800, () => this.finish(true));
       }
     });
+  }
+
+  nextRushBoss() {
+    if (this.ended) return;
+    const id = RUSH_ORDER[this.rushIdx], mini = MINIBOSSES.find(m => m.id === id);
+    this.startBossFight(this.arena, id, mini ? mini.level : 1, !mini);
   }
 
   // =============================================================== training
@@ -776,7 +798,7 @@ export default class Run extends Phaser.Scene {
     hud.bounty = fix(txt(this, 19, 19, '0', { color: '#ffe4a8' }));
     fix(this.add.image(7, 31, 'w_' + this.weaponId).setOrigin(0));
     hud.mods = fix(txt(this, 30, 31, '', { color: '#9dff3d' }));
-    const title = { run: '0000m', arena: 'MINI-BOSS ARENA', training: 'TRAINING SIM' }[this.mode];
+    const title = { run: this.daily ? 'DAILY 0000m' : '0000m', arena: 'MINI-BOSS ARENA', training: 'TRAINING SIM', rush: 'BOSS RUSH' }[this.mode];
     hud.center = fix(txt(this, W / 2, 7, title, { head: true, center: true }));
     hud.score = fix(txt(this, W - 30, 7, 'SCORE 0', { right: true, color: '#c9c5e3' }));
     if (this.mode === 'training') hud.score.setVisible(false);
@@ -817,11 +839,14 @@ export default class Run extends Phaser.Scene {
     if (this.mods.magnet) m.push('MAGNET');
     h.mods.setText(m.join('  '));
     if (this.mode === 'run') {
-      h.center.setText(String(this.stats.distance).padStart(4, '0') + 'm');
+      h.center.setText((this.daily ? 'DAILY ' : '') + String(this.stats.distance).padStart(4, '0') + 'm');
       h.center.setX(Math.round(W / 2 - h.center.width / 2));
       h.score.setText('SCORE ' + fmt(this.stats.score)); h.score.setX(Math.round(W - 30 - h.score.width));
     } else if (this.mode === 'arena') {
       h.score.setText('SCORE ' + fmt(this.stats.killScore)); h.score.setX(Math.round(W - 30 - h.score.width));
+    } else if (this.mode === 'rush') {
+      h.score.setText(fmtTime(this.rushTime)); h.score.setX(Math.round(W - 30 - h.score.width));
+      h.center.setText('BOSS RUSH  ' + Math.min(this.rushIdx + 1, RUSH_ORDER.length) + '/' + RUSH_ORDER.length); h.center.setX(Math.round(W / 2 - h.center.width / 2));
     }
     const b = this.boss;
     h.bossName.setVisible(!!b); h.bossBar.setVisible(!!b);
@@ -867,6 +892,7 @@ export default class Run extends Phaser.Scene {
       kills: this.mode === 'training' ? 0 : this.stats.kills, trainingKills: this.stats.kills,
       bosses: this.stats.bosses, bounty: this.mode === 'training' ? 0 : Math.floor(this.stats.bounty * (this.hero.bountyMul || 1)),
       wallJumps: this.stats.wallJumps, flawless: this.stats.flawless, map: this.mode === 'run' ? this.map.id : null,
+      daily: this.daily, runData: this.runData, rushTime: this.mode === 'rush' ? Math.round(this.rushTime) : null,
     };
     this.cameras.main.fadeOut(300);
     this.time.delayedCall(320, () => {
@@ -877,6 +903,7 @@ export default class Run extends Phaser.Scene {
 
   // =============================================================== main loop
   update(time, dt) {
+    if (this.mode === 'rush' && !this.ended && !this.rushDone && !this.player?.dead) this.rushTime += dt;
     if (this.xmas && Math.floor(time / 450) !== this.twinkle) {
       this.twinkle = Math.floor(time / 450); const on = this.twinkle % 2;
       this.xLights = this.xLights.filter(([a, b]) => a.active && (a.setAlpha(on ? 0.35 : 1), b.setAlpha(on ? 1 : 0), true));

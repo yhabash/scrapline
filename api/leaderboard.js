@@ -1,6 +1,8 @@
 // Scrapline leaderboard API (Vercel Function).
-//   GET  /api/leaderboard?board=all|week   -> top 100 entries
-//   POST /api/leaderboard {name, score, distance, kills, bosses, weapon}
+//   GET  /api/leaderboard?board=all|week|daily|rush[&day=YYYY-MM-DD]   -> top 100 entries
+//   POST /api/leaderboard {name, score, distance, kills, bosses, weapon, heat, hero, mode, day}
+//     mode 'run' (default) -> all-time + weekly boards; 'daily' -> that day's Daily board;
+//     'rush' -> Boss Rush board, where score is the clear time in ms and lower is better.
 // Boards are JSON files in a private Vercel Blob store. Writes use ETag checks
 // (ifMatch) so two players submitting at once can't overwrite each other.
 import { get, head, put, BlobNotFoundError } from '@vercel/blob';
@@ -24,7 +26,14 @@ export function weekKey(d = new Date()) {
 // write to their own folder so test scores never reach the live game.
 const ENV = process.env.VERCEL_ENV || 'development';
 const ROOT = ENV === 'production' ? 'leaderboard' : `leaderboard-${ENV}`;
-const pathFor = (board) => board === 'week' ? `${ROOT}/week-${weekKey()}.json` : `${ROOT}/all-time.json`;
+// Daily Challenge days run midnight to midnight US Eastern time.
+export const dailyKey = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const pathFor = (board, day) => board === 'week' ? `${ROOT}/week-${weekKey()}.json`
+  : board === 'daily' ? `${ROOT}/daily-${day || dailyKey()}.json`
+  : board === 'rush' ? `${ROOT}/rush.json` : `${ROOT}/all-time.json`;
+const BOARDS = ['all', 'week', 'daily', 'rush'];
+const asc = (board) => board === 'rush'; // Boss Rush: fastest (lowest) time first
 
 async function readBoard(path, withEtag = false) {
   if (!USE_BLOB) { const v = memory.get(path); return { list: v ? JSON.parse(v.body) : [], etag: v?.etag || null }; }
@@ -54,31 +63,31 @@ async function writeBoard(path, list, etag) {
     cacheControlMaxAge: 60, ...(etag ? { ifMatch: etag } : {}),
   });
 }
-const sortBoard = (l) => l.sort((a, b) => b.score - a.score || a.at - b.at);
+const sortBoard = (l, up = false) => l.sort((a, b) => (up ? a.score - b.score : b.score - a.score) || a.at - b.at);
 // One entry per name: keep each name's best score (earliest wins a tie).
 const key = (e) => String(e.name).toUpperCase();
-function onePerName(list) {
+function onePerName(list, up = false) {
   const seen = new Set();
-  return sortBoard([...list]).filter(e => (seen.has(key(e)) ? false : (seen.add(key(e)), true)));
+  return sortBoard([...list], up).filter(e => (seen.has(key(e)) ? false : (seen.add(key(e)), true)));
 }
-const qualifies = (list, score) => list.length < MAX || score > list[list.length - 1].score;
+const qualifies = (list, score, up = false) => list.length < MAX || (up ? score < list[list.length - 1].score : score > list[list.length - 1].score);
 
 // Insert with optimistic concurrency: re-read and retry if someone else wrote first.
 // If conditional writes keep failing (for example the storage service rejecting the
 // ETag), the last attempt writes without the check rather than losing the player's score.
 const TRIES = 5;
-async function submitTo(board, entry) {
-  const path = pathFor(board);
+async function submitTo(board, entry, day) {
+  const path = pathFor(board, day), up = asc(board);
   for (let attempt = 0; attempt < TRIES; attempt++) {
     const last = attempt === TRIES - 1;
     const read = await readBoard(path, true), etag = read.etag;
-    const list = onePerName(read.list);
+    const list = onePerName(read.list, up);
     // Same name already has an equal or better score: keep that one, nothing to write.
     const mine = list.find(e => key(e) === key(entry));
-    if (mine && mine.score >= entry.score) return { rank: list.indexOf(mine) + 1, id: mine.id, kept: true, best: mine.score, entries: list.slice(0, MAX) };
+    if (mine && (up ? mine.score <= entry.score : mine.score >= entry.score)) return { rank: list.indexOf(mine) + 1, id: mine.id, kept: true, best: mine.score, entries: list.slice(0, MAX) };
     const others = list.filter(e => key(e) !== key(entry));
-    if (!qualifies(others, entry.score)) return { rank: null, entries: list.slice(0, MAX) };
-    const next = sortBoard([...others, entry]).slice(0, MAX);
+    if (!qualifies(others, entry.score, up)) return { rank: null, entries: list.slice(0, MAX) };
+    const next = sortBoard([...others, entry], up).slice(0, MAX);
     try {
       await writeBoard(path, next, last ? null : etag);
       if (attempt > 0) console.warn('leaderboard write needed retries', { board, attempt, unconditional: last });
@@ -114,9 +123,11 @@ export default {
   async fetch(request) {
     try {
       if (request.method === 'GET') {
-        const board = new URL(request.url).searchParams.get('board') === 'week' ? 'week' : 'all';
-        const { list } = await readBoard(pathFor(board));
-        return json({ board, week: weekKey(), env: ENV, entries: onePerName(list).slice(0, MAX) }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
+        const q = new URL(request.url).searchParams;
+        const board = BOARDS.includes(q.get('board')) ? q.get('board') : 'all';
+        const day = DAY_RE.test(q.get('day') || '') ? q.get('day') : dailyKey();
+        const { list } = await readBoard(pathFor(board, day));
+        return json({ board, week: weekKey(), day, env: ENV, entries: onePerName(list, asc(board)).slice(0, MAX) }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
       }
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -141,12 +152,31 @@ export default {
       };
       entry.heatMult = Math.round(heatMult(entry.heat) * 100) / 100;
       if ([entry.score, entry.distance, entry.kills, entry.bosses].some(v => v < 0) || entry.score === 0) return json({ error: 'Invalid run.' }, 400);
+      const mode = ['daily', 'rush'].includes(body.mode) ? body.mode : 'run';
+      if (mode === 'rush') {
+        // score is the clear time in ms; all six bosses must be beaten
+        if (entry.bosses !== 6 || entry.score < 20000 || entry.score > 3600000) return json({ error: 'That run does not add up.' }, 400);
+        const rush = await submitTo('rush', entry);
+        recent.set(ip, now);
+        console.log('leaderboard submit', { mode, time: entry.score, rank: rush.rank, keptBetter: !!rush.kept });
+        return json({ id: entry.id, name, mode, main: rush });
+      }
       if (!plausible(entry)) { console.warn('implausible run', { score: entry.score, distance: entry.distance, kills: entry.kills, bosses: entry.bosses }); return json({ error: 'That run does not add up.' }, 400); }
+      if (mode === 'daily') {
+        const today = dailyKey(), yesterday = dailyKey(new Date(now - 86400000));
+        const day = body.day === yesterday ? yesterday : today; // a run that started just before midnight still counts for its day
+        if (body.day !== today && body.day !== yesterday) return json({ error: 'That daily challenge has ended.' }, 400);
+        entry.day = day;
+        const daily = await submitTo('daily', entry, day);
+        recent.set(ip, now);
+        console.log('leaderboard submit', { mode, day, score: entry.score, rank: daily.rank, keptBetter: !!daily.kept });
+        return json({ id: entry.id, name, mode, day, main: daily });
+      }
       const [all, week] = await Promise.all([submitTo('all', entry), submitTo('week', entry)]);
       recent.set(ip, now); // throttle only after a save succeeds, so a failed attempt can be retried
       if (recent.size > 5000) recent.clear();
       console.log('leaderboard submit', { score: entry.score, allRank: all.rank, weekRank: week.rank, keptBetter: !!(all.kept && week.kept) });
-      return json({ id: entry.id, name, week: weekKey(), all, weekly: week });
+      return json({ id: entry.id, name, mode, week: weekKey(), all, weekly: week });
     } catch (e) {
       console.error('leaderboard error', e);
       return json({ error: 'Leaderboard unavailable right now.' }, 503);

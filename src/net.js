@@ -13,7 +13,7 @@ async function call(url, opts = {}) {
     throw e;
   } finally { clearTimeout(t); }
 }
-export const fetchBoard = (board) => call('/api/leaderboard?board=' + board);
+export const fetchBoard = (board, day) => call('/api/leaderboard?board=' + board + (day ? '&day=' + day : ''));
 export const submitScore = (entry) => call('/api/leaderboard', {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry),
 });
