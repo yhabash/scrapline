@@ -4,7 +4,7 @@ A 16-bit cyberpunk endless runner. You're a mercenary hunting robots for bounty 
 
 **Play:** https://playscrapline.vercel.app
 
-## Features (v0.6)
+## Features (v0.7)
 - 10 seeded rooftop maps with their own colours and layouts; each run picks one at random
 - Endless procedurally generated rooftops, gaps, stairs and wall-jump chimneys
 - Double jump, wall slide and wall jump
@@ -38,6 +38,7 @@ Built with [Phaser 3](https://phaser.io) and [Vite](https://vite.dev). All art i
 The leaderboard API lives in `api/leaderboard.js` (a Vercel Function). It needs a Vercel Blob store connected to the project (`BLOB_READ_WRITE_TOKEN`); in local dev it falls back to an in-memory board.
 
 ## Changelog
+- **0.7.0**: 10 Christmas maps used only in December (snow, lights, holo trees, festive skyline, Santa hats, presents) and a festive menu. Gutter Ronin reappears at mid range after teleporting; health 85.
 - **0.6.0**: Mini-boss rebalance: Sawjaw health 61, Tesla Warden 80, Gutter Ronin 95, no enrage phase. One leaderboard entry per name (best kept). Leaderboard saving fixes (new week, held-key floods).
 - **0.5.0**: Phones: TAP TO START screen (full screen on Android, Add to Home Screen tip on iPhone), slide to run, flick up to jump, hold anywhere on the right to fire. New bass-led menu track. Leaderboard save fix.
 - **0.4.0**: Sawjaw is 20% easier (beatable with the starting pistol); the Achievements menu shows progress bars and marks earned achievements.
