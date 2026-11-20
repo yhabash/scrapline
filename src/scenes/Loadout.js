@@ -66,7 +66,7 @@ export default class Loadout extends Phaser.Scene {
     this.dStats.setText(owned ? `DAMAGE   ${w.dmg * (w.pellets || 1)}\nFIRE RATE ${(1000 / w.rate).toFixed(1)}/s\nDPS      ${dps.toFixed(1)}${w.pierce ? '\nPIERCING' : ''}` : '');
   }
   go() {
-    if (this.next.scene === 'Run') transitionTo(this, 'Run', this.next.data);
+    if (this.next.scene === 'Run') transitionTo(this, 'Prep', { next: this.next }); // hero & heat, then deploy
     else transitionTo(this, this.next.scene, this.next.data);
   }
 }

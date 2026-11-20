@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { W, H, txt, panel, Button, FocusNav, COL, fmt } from '../ui.js';
 import { drawRooftop, transitionTo } from './rooftop.js';
 import { fetchBoard, myEntries } from '../net.js';
+import { HEAT_IDS, HEROES, heatMult } from '../data.js';
 import { playMusic } from '../audio.js';
 
 const PER_PAGE = 10;
@@ -24,7 +25,7 @@ export default class Leaderboard extends Phaser.Scene {
     this.tabWeek = new Button(this, 122, 38, 90, 16, 'THIS WEEK', () => this.show('week'), { nav, color: COL.amber });
 
     const hy = 62;
-    [['#', 34], ['NAME', 56], ['SCORE', 200], ['DIST', 268], ['BOSSES', 318], ['WEAPON', 378]].forEach(([s, x]) =>
+    [['#', 34], ['NAME', 56], ['SCORE', 196], ['DIST', 250], ['BOSS', 286], ['GEAR', 330], ['HEAT', 384]].forEach(([s, x]) =>
       txt(this, x, hy, s, { color: '#575177' }));
     this.add.graphics().fillStyle(0xffb03d, 0.4).fillRect(28, hy + 11, W - 56, 1);
     this.rowsG = this.add.graphics();
@@ -32,9 +33,12 @@ export default class Leaderboard extends Phaser.Scene {
     for (let i = 0; i < PER_PAGE; i++) {
       const y = 78 + i * 14;
       this.rows.push({
-        y, rank: txt(this, 34, y, ''), name: txt(this, 56, y, ''), score: txt(this, 242, y, '', { right: true }),
-        dist: txt(this, 300, y, '', { right: true }), bosses: txt(this, 346, y, '', { right: true }),
-        icon: this.add.image(378, y + 4, 'w_pistol').setOrigin(0, 0.5).setVisible(false),
+        y, rank: txt(this, 34, y, ''), name: txt(this, 56, y, ''), score: txt(this, 238, y, '', { right: true }),
+        dist: txt(this, 280, y, '', { right: true }), bosses: txt(this, 306, y, '', { right: true }),
+        icon: this.add.image(320, y + 4, 'w_pistol').setOrigin(0, 0.5).setVisible(false),
+        hero: this.add.sprite(352, y + 10, 'merc', 0).setOrigin(0.5, 1).setScale(0.5).setVisible(false),
+        mult: txt(this, 384, y, '', { color: '#ffb03d' }),
+        pips: HEAT_IDS.map((id, k) => this.add.image(0, y + 4, 'heat_' + id).setOrigin(0, 0.5).setVisible(false)),
       });
     }
     this.status = txt(this, W / 2, 140, '', { center: true, color: '#8a84ad' });
@@ -90,6 +94,12 @@ export default class Leaderboard extends Phaser.Scene {
       r.dist.setText(e ? fmt(e.distance) + 'm' : '').setColor('#8a84ad'); r.dist.setX(Math.round(300 - r.dist.width));
       r.bosses.setText(e ? String(e.bosses) : '').setColor('#8a84ad'); r.bosses.setX(Math.round(346 - r.bosses.width));
       r.icon.setVisible(!!e); if (e) r.icon.setTexture('w_' + e.weapon);
+      const hero = e && HEROES[e.hero] ? e.hero : 'merc';
+      r.hero.setVisible(!!e); r.hero.setTint(HEROES[hero].tint);
+      const heat = e && Array.isArray(e.heat) ? e.heat : [];
+      r.mult.setText(heat.length ? 'x' + (e.heatMult || heatMult(heat)).toFixed(2) : '');
+      let px = 384 + (heat.length ? r.mult.width + 3 : 0);
+      r.pips.forEach((img, k) => { const on = heat.includes(HEAT_IDS[k]); img.setVisible(on); if (on) { img.setX(px); px += 8; } });
     });
     this.status.setText(this.entries.length ? '' : this.cache[this.board] ? 'NO RUNS YET. BE THE FIRST.' : this.status.text);
     this.pageT.setText(this.entries.length ? `PAGE ${this.page + 1} / ${pages}` : '');

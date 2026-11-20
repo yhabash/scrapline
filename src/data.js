@@ -1,6 +1,6 @@
 // Game data: weapons, enemies, bosses, specimens, achievements, supply drops, and the save file.
 
-export const VERSION = '0.7.0';
+export const VERSION = '0.8.0';
 
 export const WEAPONS = {
   pistol: { name: 'Scrap Pistol', desc: 'Reliable sidearm. Steady fire.', rate: 260, dmg: 1, speed: 440, spread: 2, pellets: 1, tex: 'b_pistol', life: 900, unlock: 'Starting weapon' },
@@ -51,7 +51,45 @@ export const SPECIMENS = [
   { id: 'crusher', kind: 'boss', cost: 700, tex: 'boss_crusher' },
   { id: 'hive', kind: 'boss', cost: 850, tex: 'boss_hive' },
   { id: 'tank', kind: 'boss', cost: 1000, tex: 'boss_tank' },
+  // mini-bosses: for sale once you have beaten them in the arena
+  { id: 'sawjaw', kind: 'mini', cost: 2500, tex: 'boss_sawjaw' },
+  { id: 'warden', kind: 'mini', cost: 3500, tex: 'boss_warden' },
+  { id: 'ronin', kind: 'mini', cost: 5000, tex: 'boss_ronin' },
 ];
+
+// Trophy room decorations (cosmetic only). x/y = where they stand in the room (floor at y 148).
+export const DECOR = [
+  { id: 'plant', name: 'NEON FERN', desc: 'A glowing potted fern.', cost: 1000, x: 44, y: 148 },
+  { id: 'poster', name: 'WANTED POSTER', desc: 'Your own bounty poster.', cost: 1200, x: 96, y: 112 },
+  { id: 'lamp', name: 'LAVA LAMP', desc: 'Slow purple blobs. Relaxing.', cost: 1500, x: 150, y: 148 },
+  { id: 'sign', name: 'NEON SIGN', desc: 'SCRAPLINE in hot pink neon.', cost: 2500, x: 240, y: 104 },
+  { id: 'jukebox', name: 'JUKEBOX', desc: 'Plays nothing. Looks great.', cost: 6000, x: 372, y: 148 },
+  { id: 'arcade', name: 'ARCADE CABINET', desc: 'A retro cabinet with a blinking screen.', cost: 4000, x: 428, y: 148 },
+  { id: 'statue', name: 'GOLD MECH STATUE', desc: 'A gold statue of a defeated robot.', cost: 12000, x: 300, y: 148 },
+  { id: 'banner', name: 'VICTORY BANNER', desc: 'Hangs over the trophy shelf.', cost: 8000, x: 240, y: 30 },
+];
+
+// Heat: optional modifiers chosen before a run. Each makes the run harder and raises the SCORE multiplier
+// (bounty is not affected). Each one costs bounty for a single run (paid at deploy). Shown on the leaderboard.
+export const HEAT = [
+  { id: 'one', name: 'ONE HEART', desc: 'Start with a single heart.', bonus: 0.5, cost: 2000, color: 0xff3d8b },
+  { id: 'storm', name: 'FAST STORM', desc: 'The scrap storm moves 30% faster.', bonus: 0.25, cost: 800, color: 0xc9c5e3 },
+  { id: 'armor', name: 'ARMORED ROBOTS', desc: 'Robots have 50% more health.', bonus: 0.25, cost: 1000, color: 0x8a84ad },
+  { id: 'trigger', name: 'TRIGGER HAPPY', desc: 'Robots fire 40% more often.', bonus: 0.3, cost: 1200, color: 0xffb03d },
+  { id: 'nosupply', name: 'NO SUPPLIES', desc: 'No supply drops.', bonus: 0.2, cost: 600, color: 0x3df5ff },
+  { id: 'blackout', name: 'BLACKOUT', desc: 'Only the area around you is lit.', bonus: 0.2, cost: 1500, color: 0x9dff3d },
+];
+export const HEAT_IDS = HEAT.map(h => h.id);
+export const heatMult = (ids = []) => Math.round((1 + HEAT.filter(h => ids.includes(h.id)).reduce((a, h) => a + h.bonus, 0)) * 100) / 100;
+
+// Heroes: bought with bounty. Each trades one strength for one weakness, so none is strictly better.
+export const HEROES = {
+  merc: { name: 'THE MERC', desc: 'Balanced bounty hunter. 3 hearts.', hp: 3, speed: 1, tint: 0xffffff, cost: 0 },
+  ghost: { name: 'GHOST', desc: 'Double jump becomes a forward air-dash. 3 hearts.', hp: 3, speed: 1, dash: true, tint: 0xa8f4ff, cost: 30000 },
+  brick: { name: 'BRICK', desc: '4 hearts, but runs 10% slower.', hp: 4, speed: 0.9, tint: 0xffb878, cost: 40000 },
+  scavenger: { name: 'SCAVENGER', desc: 'Pulls in scrap automatically and earns +15% bounty. Only 2 hearts.', hp: 2, speed: 1, magnet: true, bountyMul: 1.15, tint: 0xb8ff90, cost: 25000 },
+};
+export const HERO_ORDER = ['merc', 'ghost', 'brick', 'scavenger'];
 
 // Temporary in-run upgrades from supply drops. They last until the run ends.
 export const SUPPLIES = [
@@ -81,6 +119,7 @@ const KEY = 'scrapline_save_v1';
 export function defaultSave() {
   return {
     bounty: 0, weapons: ['pistol'], equipped: 'pistol', specimens: {}, achievements: {}, mini: {},
+    heroes: ['merc'], hero: 'merc', decor: {},
     stats: { kills: 0, bosses: 0, runs: 0, bestScore: 0, bestDistance: 0, bestKills: 0, bestBosses: 0 },
   };
 }
@@ -93,6 +132,7 @@ export function loadSave() {
     // v0.3: the Plasma Blade became the Ricochet Disc
     s.weapons = [...new Set(s.weapons.map(w => (w === 'blade' ? 'disc' : w)))];
     if (s.equipped === 'blade') s.equipped = 'disc';
+    if (!s.heroes.includes(s.hero)) s.hero = 'merc';
     return s;
   } catch (e) { return defaultSave(); }
 }

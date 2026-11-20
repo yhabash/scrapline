@@ -16,14 +16,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.body.setMaxVelocity(400, 620);
     this.facing = 1; this.airJumps = 1; this.jumpsLeft = 1;
     this.coyote = 0; this.jumpBuf = 0; this.wallDir = 0; this.wallGrace = 0; this.wallLock = 0;
-    this.invuln = 0; this.fireCd = 0; this.dead = false; this.sliding = false;
+    this.invuln = 0; this.fireCd = 0; this.dead = false; this.sliding = false; this.dashing = 0;
+    if (scene.hero && scene.hero.tint !== 0xffffff) this.setTint(scene.hero.tint);
   }
 
   tick(dt, inp) {
     if (this.dead) return;
     const b = this.body, s = this.scene;
     const onFloor = b.blocked.down;
-    const RUN = 150;
+    const RUN = 150 * (s.hero?.speed || 1);
     if (onFloor) { this.coyote = 90; this.jumpsLeft = this.airJumps; } else this.coyote -= dt;
 
     let touching = 0;
@@ -55,8 +56,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         b.velocity.y = -320; b.velocity.x = -this.wallDir * 200; this.wallLock = 150;
         this.facing = -this.wallDir; this.wallGrace = 0; this.jumpBuf = 0; this.jumpsLeft = this.airJumps;
         s.stats.wallJumps++; s.fxPuff(this.x + this.wallDir * 6, this.y - 10); sfx('wallJump');
+      } else if (this.jumpsLeft > 0 && s.hero?.dash) {
+        // Ghost: the air jump is a quick forward dash
+        b.velocity.y = -110; b.velocity.x = this.facing * 360; this.wallLock = 190; this.dashing = 190;
+        this.jumpsLeft--; this.jumpBuf = 0; s.fxPuff(this.x, this.y - 10, 0xa8f4ff); sfx('doubleJump');
       } else if (this.jumpsLeft > 0) {
         b.velocity.y = -290; this.jumpsLeft--; this.jumpBuf = 0; s.fxPuff(this.x, this.y, 0x3df5ff); sfx('doubleJump');
+      }
+    }
+    if (this.dashing > 0) { // Ghost dash trail
+      this.dashing -= dt;
+      if (Math.floor(this.dashing / 40) !== Math.floor((this.dashing + dt) / 40)) {
+        const g = s.add.image(this.x, this.y, this.texture.key, this.frame.name).setOrigin(0.5, 1).setFlipX(this.flipX).setTint(0xa8f4ff).setAlpha(0.5).setDepth(29);
+        s.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
       }
     }
     if (!inp.jump && b.velocity.y < -170) b.velocity.y = -170; // short hop on release
@@ -90,7 +102,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.type = type; this.cfg = cfg; this.isBoss = false;
     this.hp = this.hpMax = cfg.hp * (opts.hpMul || 1);
     this.points = cfg.points; this.bountyVal = cfg.bounty;
-    this.t = Math.random() * 1000; this.cd = 1200 + Math.random() * 1500;
+    this.t = Math.random() * 1000; this.cd = (1200 + Math.random() * 1500) * (scene.fireCdMul || 1);
     this.flying = !!cfg.flying; this.minX = opts.minX; this.maxX = opts.maxX;
     this.shoots = opts.shoots ?? true;
     this.setDepth(20);
@@ -132,7 +144,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       const ty = (near ? Math.max(p.y - 70, this.baseY - 40) : this.baseY) + Math.sin(this.t * 0.004) * 10;
       b.setVelocity(Phaser.Math.Clamp((tx - this.x) * 1.2, -60, 60), Phaser.Math.Clamp((ty - this.y) * 2, -80, 80));
       this.setFlipX(dx < 0);
-      if (near && this.shoots && s.diff >= 1.5) { this.cd -= dt; if (this.cd <= 0) { this.cd = 2400; s.enemyShoot(this.x, this.y + 4, p.x, p.y - 10, 110); } }
+      if (near && this.shoots && s.diff >= 1.5) { this.cd -= dt; if (this.cd <= 0) { this.cd = 2400 * (s.fireCdMul || 1); s.enemyShoot(this.x, this.y + 4, p.x, p.y - 10, 110); } }
     } else if (this.type === 'walker') {
       if (b.blocked.down) {
         if (b.blocked.left) this.dir = 1; else if (b.blocked.right) this.dir = -1;
@@ -143,14 +155,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       const facing = Math.sign(dx) === this.dir;
       if (this.shoots && s.diff >= 1.6 && facing && Math.abs(dx) < 220 && Math.abs(p.y - this.y) < 26) {
         this.cd -= dt;
-        if (this.cd <= 0) { this.cd = 2600; s.enemyShoot(this.x + this.dir * 10, this.y, this.x + this.dir * 100, this.y, 140); }
+        if (this.cd <= 0) { this.cd = 2600 * (s.fireCdMul || 1); s.enemyShoot(this.x + this.dir * 10, this.y, this.x + this.dir * 100, this.y, 140); }
       }
     } else if (this.type === 'turret') {
       this.setFlipX(dx < 0);
       if (this.shoots && Math.abs(dx) < 260) {
         this.cd -= dt;
         if (this.cd <= 0) {
-          this.cd = 2200;
+          this.cd = 2200 * (s.fireCdMul || 1);
           for (let i = 0; i < 3; i++) s.time.delayedCall(i * 140, () => { if (this.active) s.enemyShoot(this.x + (dx < 0 ? -8 : 8), this.y - 3, p.x, p.y - 10, 130); });
         }
       }
@@ -162,7 +174,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       const tx = p.x + 10;
       b.setVelocity(Phaser.Math.Clamp((tx - this.x) * 0.8, -45, 45), (this.baseY + Math.sin(this.t * 0.003) * 6 - this.y) * 2);
       this.setFlipX(dx < 0);
-      if (this.shoots && Math.abs(dx) < 30) { this.cd -= dt; if (this.cd <= 0) { this.cd = 1300; s.enemyBomb(this.x, this.y + 8, b.velocity.x * 0.5, 0); } }
+      if (this.shoots && Math.abs(dx) < 30) { this.cd -= dt; if (this.cd <= 0) { this.cd = 1300 * (s.fireCdMul || 1); s.enemyBomb(this.x, this.y + 8, b.velocity.x * 0.5, 0); } }
     }
   }
 }
@@ -183,7 +195,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.extra = Math.floor((tier - 1) / 2);
     this.displayName = cfg.name + (showMk ? ' MK-' + roman(tier) : '');
     // arena mini-bosses: fixed health, no enrage phase
-    this.mini = scene.mode === 'arena' ? MINIBOSSES.find(m => m.id === id) : null;
+    this.mini = scene.mode === 'arena' || scene.mode === 'training' ? MINIBOSSES.find(m => m.id === id) || null : null;
     if (this.mini) this.hp = this.hpMax = this.mini.hp;
     this.points = cfg.points * tier; this.bountyVal = cfg.bounty * tier;
     if (scene.xmas) { this.hat = scene.add.image(x, y, 'santa_hat').setOrigin(0.5, 1).setDepth(26).setScale(2); this.hatDx = 4; this.hatDy = 8; }

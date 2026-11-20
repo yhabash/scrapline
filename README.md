@@ -4,7 +4,7 @@ A 16-bit cyberpunk endless runner. You're a mercenary hunting robots for bounty 
 
 **Play:** https://playscrapline.vercel.app
 
-## Features (v0.7)
+## Features (v0.8)
 - 10 seeded rooftop maps with their own colours and layouts; each run picks one at random
 - Endless procedurally generated rooftops, gaps, stairs and wall-jump chimneys
 - Double jump, wall slide and wall jump
@@ -21,8 +21,8 @@ A 16-bit cyberpunk endless runner. You're a mercenary hunting robots for bounty 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
 | Move | A / D or arrows | Slide a thumb on the left side |
-| Jump / double jump / wall jump | Space, W or Up | Flick the left thumb up |
-| Fire | J, X or mouse click | Hold anywhere on the right side |
+| Jump / double jump / wall jump | Space, W or Up | Touch the right side |
+| Fire | J, X or mouse click | Quick tap on the left side turns firing on/off |
 | Pause | Esc or P | Pause button |
 | Mute | M | Settings or pause menu |
 
@@ -38,6 +38,7 @@ Built with [Phaser 3](https://phaser.io) and [Vite](https://vite.dev). All art i
 The leaderboard API lives in `api/leaderboard.js` (a Vercel Function). It needs a Vercel Blob store connected to the project (`BLOB_READ_WRITE_TOKEN`); in local dev it falls back to an in-memory board.
 
 ## Changelog
+- **0.8.0**: Heat (6 pay-per-run modifiers that multiply the score, shown on the leaderboard), 3 buyable heroes (Ghost, Brick, Scavenger), trophy room and mini-boss specimens in the Training Room, new phone controls (tap left to toggle firing, right side jumps).
 - **0.7.0**: 10 Christmas maps used only in December (snow, lights, holo trees, festive skyline, Santa hats, presents) and a festive menu. Gutter Ronin reappears at mid range after teleporting; health 85.
 - **0.6.0**: Mini-boss rebalance: Sawjaw health 61, Tesla Warden 80, Gutter Ronin 95, no enrage phase. One leaderboard entry per name (best kept). Leaderboard saving fixes (new week, held-key floods).
 - **0.5.0**: Phones: TAP TO START screen (full screen on Android, Add to Home Screen tip on iPhone), slide to run, flick up to jump, hold anywhere on the right to fire. New bass-led menu track. Leaderboard save fix.

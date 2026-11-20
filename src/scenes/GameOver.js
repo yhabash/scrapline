@@ -47,7 +47,9 @@ export default class GameOver extends Phaser.Scene {
 
     const rows = [];
     if (r.mode === 'run') {
-      rows.push(['MAP', (ALL_MAPS.find(m => m.id === r.map)?.name || '-') + '  #' + r.map], ['DISTANCE', fmt(r.distance) + 'm'], ['ROBOTS DESTROYED', fmt(r.kills)], ['BOSSES DEFEATED', fmt(r.bosses)], ['SCORE', fmt(r.score)]);
+      rows.push(['MAP', (ALL_MAPS.find(m => m.id === r.map)?.name || '-') + '  #' + r.map], ['DISTANCE', fmt(r.distance) + 'm'], ['ROBOTS DESTROYED', fmt(r.kills)], ['BOSSES DEFEATED', fmt(r.bosses)]);
+      if (r.heat?.length) rows.push(['HEAT', fmt(r.baseScore) + '  x' + r.heatMult.toFixed(2)]);
+      rows.push(['SCORE', fmt(r.score)]);
     } else {
       rows.push(['OPPONENT', BOSSES[r.boss].name], ['ROBOTS DESTROYED', fmt(r.kills)]);
     }
@@ -55,7 +57,7 @@ export default class GameOver extends Phaser.Scene {
     rows.forEach(([k, v], i) => {
       const y = 50 + i * 12;
       txt(this, 80, y, k, { color: '#8a84ad' });
-      txt(this, W - 80, y, v, { right: true, color: k === 'SCORE' ? '#ffffff' : k === 'MAP' ? '#3df5ff' : k === 'BOUNTY BANKED' ? '#ffe4a8' : '#c9c5e3' });
+      txt(this, W - 80, y, v, { right: true, color: k === 'SCORE' ? '#ffffff' : k === 'MAP' ? '#3df5ff' : k === 'HEAT' ? '#ffb03d' : k === 'BOUNTY BANKED' ? '#ffe4a8' : '#c9c5e3' });
     });
     let y = 50 + rows.length * 12 + 5;
     if (r.mode === 'run' && r.score > prevBest && r.score > 0) {
@@ -128,7 +130,7 @@ export default class GameOver extends Phaser.Scene {
     this.sending = true; this.submitBtn.setEnabled(false); msg('Sending...', '#8a84ad');
     try { localStorage.setItem(NAME_KEY, name); } catch (e) { /* ignore */ }
     try {
-      const res = await submitScore({ name, score: r.score, distance: r.distance, kills: r.kills, bosses: r.bosses, weapon: r.weapon });
+      const res = await submitScore({ name, score: r.score, distance: r.distance, kills: r.kills, bosses: r.bosses, weapon: r.weapon, heat: r.heat || [], hero: r.hero || 'merc' });
       if (!this.sys.isActive()) return;
       this.sent = true;
       [res.all?.id, res.weekly?.id].forEach(id => { if (id) rememberEntry(id); });
