@@ -1,8 +1,9 @@
 // Phone controls, built for thumbs.
-//  Left thumb: touch anywhere on the left side and slide left or right to run (a floating stick).
-//              Flick the thumb up to jump; flick again in the air to double jump or wall jump.
-//              Keep the thumb up for a full jump, pull it back down early for a short hop.
-//  Right thumb: hold anywhere on the right side to fire.
+//  Left thumb:  touch anywhere on the left side and slide left or right to run (a floating stick).
+//               A quick tap there (no slide) switches firing ON or OFF. Firing stays on until you tap
+//               again, just like holding the fire key on a computer. A light shows when it is on.
+//  Right thumb: the whole right side is JUMP. Hold for a full jump, let go early for a short hop;
+//               tap again in the air to double jump or wall jump.
 // Every finger is read each frame, so you can run, jump and fire at the same time.
 import { W, H } from './ui.js';
 
@@ -14,30 +15,37 @@ const SPLIT = 0.46;       // fraction of the screen width that belongs to the mo
 const DEAD = 5;           // stick dead zone (logical px)
 const REACH = 26;         // how far the knob travels; the stick origin follows past this
 const TOP = 26;           // keep the top strip free for the HUD and pause button
-const FLICK = 13;         // upward travel that counts as a flick (logical px)...
-const FLICK_MS = 200;     // ...if it happens within this time
-const RELEASE = 10;       // pulling back down this far ends the jump (short hop)
+const TAP_MS = 220;       // a touch shorter than this...
+const TAP_MOVE = 7;       // ...that moved less than this counts as a tap (fire on/off)
 
 export class TouchControls {
   constructor(scene) {
     this.scene = scene;
     this.visible = isTouchDevice();
-    this.fireBtn = { x: W - 64, y: H - 60, r: 34, label: 'FIRE', col: 0xffb03d };
+    this.jumpBtn = { x: W - 62, y: H - 62, r: 36, col: 0x3df5ff };
+    this.lamp = { x: 30, y: H - 96 };
     this.sticks = new Map(); // pointer id -> stick state
+    this.firing = false;
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(110);
     const style = { fontFamily: 'Silkscreen, monospace', fontSize: '8px', color: '#ffffff' };
-    this.labels = [scene.add.text(this.fireBtn.x, this.fireBtn.y, 'HOLD\nFIRE', { ...style, align: 'center' })
-      .setOrigin(0.5).setScrollFactor(0).setDepth(111).setAlpha(0.85)];
-    this.hint = scene.add.text(W * SPLIT / 2, H - 16, 'SLIDE TO RUN  ·  FLICK UP TO JUMP', { ...style, color: '#c9c5e3' })
-      .setOrigin(0.5).setScrollFactor(0).setDepth(111).setAlpha(0.6);
-    scene.time.delayedCall(8000, () => scene.tweens.add({ targets: this.hint, alpha: 0, duration: 800 }));
+    this.labels = [
+      scene.add.text(this.jumpBtn.x, this.jumpBtn.y, 'JUMP', style).setOrigin(0.5).setScrollFactor(0).setDepth(111).setAlpha(0.85),
+      this.lampText = scene.add.text(this.lamp.x + 10, this.lamp.y, 'FIRE OFF', { ...style, color: '#8a84ad' }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(111),
+    ];
+    this.hint = scene.add.text(W * SPLIT / 2, H - 14, 'SLIDE TO RUN  ·  TAP TO FIRE ON/OFF', { ...style, color: '#c9c5e3' })
+      .setOrigin(0.5).setScrollFactor(0).setDepth(111).setAlpha(0.65);
+    scene.time.delayedCall(9000, () => scene.tweens.add({ targets: this.hint, alpha: 0, duration: 800 }));
     this.state = { left: false, right: false, fire: false, jump: false };
-    this.knob = null; this.jumpFlash = 0;
+    this.knob = null;
     this.setVisible(this.visible);
     scene.input.addPointer(3); // up to 5 fingers
     scene.input.on('pointerdown', (p) => { if (p.wasTouch && !this.visible) this.setVisible(true); });
   }
   setVisible(v) { this.visible = v; this.g.setVisible(v); this.labels.forEach(l => l.setVisible(v)); this.hint.setVisible(v); }
+  setFiring(on) {
+    this.firing = on;
+    this.lampText.setText(on ? 'FIRE ON' : 'FIRE OFF').setColor(on ? '#ffb03d' : '#8a84ad');
+  }
 
   read() {
     const st = { left: false, right: false, fire: false, jump: false };
@@ -50,33 +58,26 @@ export class TouchControls {
         live.add(p.id);
         const x = p.x, y = p.y;
         let o = this.sticks.get(p.id);
-        if (!o && x < W * SPLIT && y > TOP) {
-          o = { x, y, lowY: y, lowT: now, jumping: false, peakY: y };
-          this.sticks.set(p.id, o);
-        }
+        if (!o && x < W * SPLIT && y > TOP) { o = { x, y, x0: x, y0: y, t0: now, moved: 0 }; this.sticks.set(p.id, o); }
         if (o) {
+          o.moved = Math.max(o.moved, Math.hypot(x - o.x0, y - o.y0));
           // floating stick: slide left/right from where the thumb landed
           let dx = x - o.x;
           if (Math.abs(dx) > REACH) { o.x = x - Math.sign(dx) * REACH; dx = Math.sign(dx) * REACH; }
           if (dx < -DEAD) st.left = true; else if (dx > DEAD) st.right = true;
-          // flick up to jump: a quick upward move from the thumb's recent lowest point
-          if (o.jumping) {
-            o.peakY = Math.min(o.peakY, y);
-            if (y - o.peakY >= RELEASE) { o.jumping = false; o.lowY = y; o.lowT = now; }
-          } else {
-            if (y >= o.lowY || now - o.lowT > FLICK_MS) { o.lowY = y; o.lowT = now; }
-            else if (o.lowY - y >= FLICK) { o.jumping = true; o.peakY = y; this.jumpFlash = 160; }
-          }
-          if (o.jumping) st.jump = true;
-          o.y = y;
-          this.knob = { ox: o.x, oy: o.y, x: o.x + dx, jump: o.jumping };
+          this.knob = { ox: o.x, oy: o.y0, x: o.x + dx };
           continue;
         }
-        if (y > TOP) st.fire = true; // anywhere on the right side
+        if (y > TOP) st.jump = true; // the whole right side jumps
       }
-      for (const id of [...this.sticks.keys()]) if (!live.has(id)) this.sticks.delete(id);
+      // a left-side touch that just ended: short and still = tap = switch firing
+      for (const [id, o] of [...this.sticks]) {
+        if (live.has(id)) continue;
+        if (now - o.t0 <= TAP_MS && o.moved < TAP_MOVE) this.setFiring(!this.firing);
+        this.sticks.delete(id);
+      }
     }
-    this.jumpFlash = Math.max(0, this.jumpFlash - this.scene.game.loop.delta);
+    st.fire = this.firing;
     this.state = st;
     this.draw();
     return st;
@@ -85,22 +86,25 @@ export class TouchControls {
   draw() {
     if (!this.visible) return;
     const g = this.g; g.clear();
-    const b = this.fireBtn, on = this.state.fire;
+    const b = this.jumpBtn, on = this.state.jump;
     g.fillStyle(0x0b0614, on ? 0.55 : 0.3).fillCircle(b.x, b.y, b.r);
     g.lineStyle(2, b.col, on ? 1 : 0.5).strokeCircle(b.x, b.y, b.r);
     if (on) g.fillStyle(b.col, 0.22).fillCircle(b.x, b.y, b.r - 3);
+    // fire lamp
+    const L = this.lamp, f = this.firing;
+    g.fillStyle(f ? 0xffb03d : 0x3a3552, 1).fillCircle(L.x, L.y, 4);
+    if (f) g.fillStyle(0xffb03d, 0.25).fillCircle(L.x, L.y, 8);
     if (this.knob) {
-      const k = this.knob, col = k.jump || this.jumpFlash > 0 ? 0x3df5ff : 0xc9c5e3;
-      g.lineStyle(1, col, 0.45).strokeCircle(k.ox, k.oy, REACH + 6);
-      g.fillStyle(col, 0.12).fillCircle(k.ox, k.oy, REACH + 6);
+      const k = this.knob;
+      g.lineStyle(1, 0xc9c5e3, 0.45).strokeCircle(k.ox, k.oy, REACH + 6);
+      g.fillStyle(0xc9c5e3, 0.12).fillCircle(k.ox, k.oy, REACH + 6);
       g.fillStyle(0xffffff, 0.5).fillCircle(k.x, k.oy, 11);
     } else {
-      // resting hint: left/right arrows and an up arrow in the move zone
+      // resting hint: left/right arrows in the move zone
       const cx = W * SPLIT / 2, cy = H - 46;
       g.fillStyle(0xc9c5e3, 0.2);
       g.fillTriangle(cx - 34, cy, cx - 24, cy - 7, cx - 24, cy + 7);
       g.fillTriangle(cx + 34, cy, cx + 24, cy - 7, cx + 24, cy + 7);
-      g.fillStyle(0x3df5ff, 0.25).fillTriangle(cx, cy - 32, cx - 7, cy - 22, cx + 7, cy - 22);
       g.lineStyle(1, 0xc9c5e3, 0.2).strokeCircle(cx, cy, 14);
     }
   }

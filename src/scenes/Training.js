@@ -16,11 +16,15 @@ const INFO = {
   crusher: 'Run boss. Charges, stomps shockwaves, sprays bullets.',
   hive: 'Run boss. Floating core: bullet rings, homing orbs, drones.',
   tank: 'Run boss. Mortar barrages and a sweeping laser.',
+  sawjaw: 'Mini-boss. Charges, dashes and stomps.',
+  warden: 'Mini-boss. Teleports, then fires orbs and rings.',
+  ronin: 'Mini-boss. Dashes, sprays and blinks around you.',
 };
+const TABS = [['robots', 'ROBOTS'], ['bosses', 'BOSSES'], ['trophy', 'TROPHY ROOM']];
 
 export default class Training extends Phaser.Scene {
   constructor() { super('Training'); }
-  init(data) { this.result = data?.result || null; }
+  init(data) { this.result = data?.result || null; this.tab = data?.tab || 'robots'; }
 
   create() {
     centerLayout(this);
@@ -38,8 +42,13 @@ export default class Training extends Phaser.Scene {
     this.bountyIcon = this.add.sprite(this.bountyT.x - 11, 10, 'scrap', 0).setOrigin(0).play('scrap_spin');
 
     this.nav = new FocusNav(this, () => transitionTo(this, 'Menu'));
-    this.pods = SPECIMENS.map((sp, i) => {
-      const x = 32 + i * 59, y = 82;
+    // tabs: robots / bosses (incl. mini-bosses) / trophy room
+    this.tabs = TABS.map(([id, label], i) => new Button(this, 16 + i * 104, 26, 100, 16, label, () => {
+      if (id === 'trophy') transitionTo(this, 'Trophy'); else if (id !== this.tab) this.scene.restart({ tab: id });
+    }, { nav: this.nav, color: id === this.tab ? COL.cyan : COL.m3 }));
+    const list = SPECIMENS.filter(sp => (this.tab === 'robots' ? sp.kind === 'enemy' : sp.kind !== 'enemy'));
+    this.pods = list.map((sp, i) => {
+      const x = Math.round(W / 2 - (list.length - 1) * 36 + i * 72), y = 88;
       const owned = !!this.save.specimens[sp.id];
       this.add.rectangle(x, y + 4, 44, 64, 0x04070b, 1);
       const back = this.add.image(x, y, 'pod_back');
@@ -68,7 +77,7 @@ export default class Training extends Phaser.Scene {
     const back = new Button(this, W - 140, 228, 116, 20, '< BACK', () => transitionTo(this, 'Menu'), { nav: this.nav, color: COL.m4 });
     txt(this, 24, 228, 'Practice is free once a specimen is yours.\nNo bounty is earned in the sim.', { color: '#575177' });
 
-    this.nav.set([...this.pods.map(p => p.b), this.action, back]);
+    this.nav.set([...this.tabs, ...this.pods.map(p => p.b), this.action, back], 3);
     this.pods.forEach((p, i) => p.b.zone.on('pointerover', () => this.select(i, true)));
     this.select(0, true);
 
@@ -80,8 +89,10 @@ export default class Training extends Phaser.Scene {
     }
     this.cameras.main.fadeIn(250);
   }
+  locked(sp) { return sp.kind === 'mini' && !this.save.mini[sp.id]; }
   refreshPod(p) {
     const owned = !!this.save.specimens[p.sp.id];
+    if (this.locked(p.sp)) { p.spr.setTint(0x0d1a22); p.lock.setVisible(true); p.label.setText('BEAT IT').setColor('#575177'); p.label.setX(Math.round(p.x - p.label.width / 2)); return; }
     p.spr.setTint(owned ? 0xffffff : 0x0d1a22);
     p.lock.setVisible(!owned);
     p.label.setText(owned ? 'OWNED' : fmt(p.sp.cost)).setColor(owned ? '#9dff3d' : this.save.bounty >= p.sp.cost ? '#ffe4a8' : '#8a84ad');
@@ -97,11 +108,12 @@ export default class Training extends Phaser.Scene {
     const owned = !!this.save.specimens[sp.id];
     const isBoss = !!BOSSES[sp.id];
     this.dName.setText((isBoss ? BOSSES[sp.id].name : ENEMIES[sp.id].name).toUpperCase());
-    this.dKind.setText(isBoss ? 'BOSS SPECIMEN' : 'ROBOT SPECIMEN');
+    this.dKind.setText(sp.kind === 'mini' ? 'MINI-BOSS SPECIMEN' : isBoss ? 'BOSS SPECIMEN' : 'ROBOT SPECIMEN');
     this.dDesc.setText(INFO[sp.id]);
-    this.dCost.setText(owned ? 'In captivity. Ready for practice.' : 'COST: ' + fmt(sp.cost) + ' bounty');
+    const locked = this.locked(sp);
+    this.dCost.setText(locked ? 'Beat it in the Mini-Boss Arena to capture it.' : owned ? 'In captivity. Ready for practice.' : 'COST: ' + fmt(sp.cost) + ' bounty');
     this.action.setLabel(owned ? 'PRACTICE  >' : 'BUY');
-    this.action.setEnabled(owned || this.save.bounty >= sp.cost);
+    this.action.setEnabled(!locked && (owned || this.save.bounty >= sp.cost));
     if (!quiet) this.nav.focusItem(this.action);
   }
   act() {
@@ -110,7 +122,7 @@ export default class Training extends Phaser.Scene {
       transitionTo(this, 'Run', { mode: 'training', specimen: sp.id });
       return;
     }
-    if (this.save.bounty < sp.cost) return;
+    if (this.locked(sp) || this.save.bounty < sp.cost) return;
     this.save.bounty -= sp.cost;
     this.save.specimens[sp.id] = Date.now();
     writeSave(this.save);

@@ -93,12 +93,16 @@ async function submitTo(board, entry) {
   throw new Error('busy');
 }
 
+// Heat modifiers and their score bonus (must match src/data.js HEAT), and the heroes.
+const HEAT_BONUS = { one: 0.5, storm: 0.25, armor: 0.25, trigger: 0.3, nosupply: 0.2, blackout: 0.2 };
+const HEROES = ['merc', 'ghost', 'brick', 'scavenger'];
+const heatMult = (ids) => 1 + ids.reduce((a, id) => a + HEAT_BONUS[id], 0);
 function plausible(e) {
   if (e.distance > 50000 || e.kills > 20000) return false;
   if (e.bosses > Math.floor(e.distance / 500) + 1) return false;
   let bossPts = 0;
   for (let t = 1; t <= e.bosses; t++) bossPts += 1800 * t;
-  return e.score <= e.distance * 14 + bossPts + 3000;
+  return e.score <= (e.distance * 14 + bossPts + 3000) * heatMult(e.heat || []) + 1;
 }
 const int = (v) => (Number.isFinite(Number(v)) ? Math.floor(Number(v)) : -1);
 const json = (data, status = 200, headers = {}) => {
@@ -132,7 +136,10 @@ export default {
         id: Math.random().toString(36).slice(2, 10) + now.toString(36),
         name, score: int(body.score), distance: int(body.distance), kills: int(body.kills), bosses: int(body.bosses),
         weapon: WEAPONS.includes(body.weapon) ? body.weapon : 'pistol', at: now,
+        heat: Array.isArray(body.heat) ? [...new Set(body.heat.filter(id => id in HEAT_BONUS))] : [],
+        hero: HEROES.includes(body.hero) ? body.hero : 'merc',
       };
+      entry.heatMult = Math.round(heatMult(entry.heat) * 100) / 100;
       if ([entry.score, entry.distance, entry.kills, entry.bosses].some(v => v < 0) || entry.score === 0) return json({ error: 'Invalid run.' }, 400);
       if (!plausible(entry)) { console.warn('implausible run', { score: entry.score, distance: entry.distance, kills: entry.kills, bosses: entry.bosses }); return json({ error: 'That run does not add up.' }, 400); }
       const [all, week] = await Promise.all([submitTo('all', entry), submitTo('week', entry)]);

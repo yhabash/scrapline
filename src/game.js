@@ -11,6 +11,8 @@ import Arena from './scenes/Arena.js';
 import Achievements from './scenes/Achievements.js';
 import Leaderboard from './scenes/Leaderboard.js';
 import Settings from './scenes/Settings.js';
+import Prep from './scenes/Prep.js';
+import Trophy from './scenes/Trophy.js';
 import { unlockAudio, suspendForHidden, toggleMute } from './audio.js';
 import { W, isPhone } from './view.js';
 
@@ -44,7 +46,7 @@ loadFonts().then(() => {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     input: { activePointers: 5 },
     dom: { createContainer: true },
-    scene: [Boot, Menu, Loadout, Run, Pause, GameOver, Training, Arena, Achievements, Leaderboard, Settings],
+    scene: [Boot, Menu, Loadout, Run, Pause, GameOver, Training, Arena, Achievements, Leaderboard, Settings, Prep, Trophy],
   });
   window.__game = game;
 });

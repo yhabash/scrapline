@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { Player, Enemy, Boss } from '../entities.js';
 import { MAPS, ALL_MAPS, mapPool, pickMap, seededRandom } from '../maps.js';
-import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, loadSave } from '../data.js';
+import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, HEROES, heatMult, loadSave } from '../data.js';
 import { OX, roomSides } from '../ui.js';
 import { W, H, txt, cityBackdrop, ashFall, snowFall, hatOn, glow, fmt, COL } from '../ui.js';
 import { TouchControls } from '../touch.js';
@@ -28,8 +28,15 @@ export default class Run extends Phaser.Scene {
     this.save = loadSave();
     this.weaponId = this.save.weapons.includes(this.save.equipped) ? this.save.equipped : 'pistol';
     this.weapon = WEAPONS[this.weaponId];
-    this.hp = this.maxHp = 3; this.armor = 0;
-    this.mods = { rapid: 0, power: 0, jets: 0, magnet: false };
+    // hero (bought with bounty) and Heat (run-only modifiers that raise the score multiplier)
+    this.heroId = this.save.heroes.includes(this.save.hero) ? this.save.hero : 'merc';
+    this.hero = HEROES[this.heroId];
+    this.heatIds = this.mode === 'run' ? this.save.heatOn.filter(id => this.save.heatOwned.includes(id)) : [];
+    this.heat = (id) => this.heatIds.includes(id);
+    this.scoreMul = heatMult(this.heatIds);
+    this.fireCdMul = this.heat('trigger') ? 1 / 1.4 : 1;
+    this.hp = this.maxHp = this.heat('one') ? 1 : this.hero.hp; this.armor = 0;
+    this.mods = { rapid: 0, power: 0, jets: 0, magnet: !!this.hero.magnet };
     this.stats = { kills: 0, wallJumps: 0, bosses: 0, killScore: 0, chipScore: 0, score: 0, bounty: 0, distance: 0, flawless: false };
     this.frozen = false; this.ended = false; this.diff = 1; this.teleMul = 1;
     this.segments = []; this.seg = null; this.boss = null; this.arena = null; this.pendingArenas = [];
@@ -344,7 +351,7 @@ export default class Run extends Phaser.Scene {
       this.spawnEnemy(type, ex, ey, { hpMul: 1 + (d - 1) * 0.25, minX: s.x0 + 10, maxX: s.x1 - 10 });
     }
   }
-  spawnEnemy(type, x, y, opts = {}) { return new Enemy(this, x, y, type, opts); }
+  spawnEnemy(type, x, y, opts = {}) { if (this.heat('armor')) opts = { ...opts, hpMul: (opts.hpMul || 1) * 1.5 }; return new Enemy(this, x, y, type, opts); }
 
   buildRoom() {
     const training = this.mode === 'training';
@@ -373,7 +380,7 @@ export default class Run extends Phaser.Scene {
   updateStorm(dt) {
     const cam = this.cameras.main, p = this.player;
     if (!this.stormPaused) {
-      let speed = Math.min(95, 32 + this.stats.distance * 0.035);
+      let speed = Math.min(95, 32 + this.stats.distance * 0.035) * (this.heat('storm') ? 1.3 : 1);
       if (this.slowZones.some(([a, b]) => p.x > a && p.x < b)) speed *= 0.3;
       this.stormX += speed * dt / 1000;
       this.stormX = Math.max(this.stormX, cam.scrollX - 150);
@@ -464,7 +471,8 @@ export default class Run extends Phaser.Scene {
   startTraining() {
     const sp = this.specimen;
     if (BOSSES[sp]) {
-      this.time.delayedCall(600, () => this.startBossFight(this.arena, sp, 1, true));
+      const mini = MINIBOSSES.find(m => m.id === sp);
+      this.time.delayedCall(600, () => this.startBossFight(this.arena, sp, mini ? mini.level : 1, !mini));
     } else {
       this.banner('TRAINING SIM', 'Specimen: ' + ENEMIES[sp].name + '. Pause to end the session.', COL.cyan, 2200);
       this.trainTimer = 1500;
@@ -763,7 +771,7 @@ export default class Run extends Phaser.Scene {
     const D = 100, fix = (o) => o.setScrollFactor(0).setDepth(D);
     const hud = this.hud = {};
     hud.hearts = []; for (let i = 0; i < this.maxHp; i++) hud.hearts.push(fix(this.add.image(8 + i * 10, 8, 'heart').setOrigin(0)));
-    hud.armor = []; for (let i = 0; i < 3; i++) hud.armor.push(fix(this.add.image(40 + i * 10, 8, 'shield').setOrigin(0)).setVisible(false));
+    hud.armor = []; for (let i = 0; i < 3; i++) hud.armor.push(fix(this.add.image(10 + this.maxHp * 10 + i * 10, 8, 'shield').setOrigin(0)).setVisible(false));
     fix(this.add.sprite(8, 20, 'scrap', 0).setOrigin(0));
     hud.bounty = fix(txt(this, 19, 19, '0', { color: '#ffe4a8' }));
     fix(this.add.image(7, 31, 'w_' + this.weaponId).setOrigin(0));
@@ -772,6 +780,11 @@ export default class Run extends Phaser.Scene {
     hud.center = fix(txt(this, W / 2, 7, title, { head: true, center: true }));
     hud.score = fix(txt(this, W - 30, 7, 'SCORE 0', { right: true, color: '#c9c5e3' }));
     if (this.mode === 'training') hud.score.setVisible(false);
+    if (this.heatIds.length) {
+      hud.heat = fix(txt(this, W - 30, 18, 'HEAT x' + this.scoreMul.toFixed(2), { right: true, color: '#ffb03d' }));
+      hud.heat.setX(Math.round(W - 30 - hud.heat.width));
+    }
+    if (this.heat('blackout')) this.blackout = fix(this.add.image(0, 0, 'blackout')).setDepth(85);
     // pause button
     const pg = fix(this.add.graphics());
     pg.fillStyle(0x0b0614, 0.6).fillRect(W - 22, 4, 16, 14).fillStyle(0xc9c5e3, 1).fillRect(W - 18, 7, 3, 8).fillRect(W - 13, 7, 3, 8);
@@ -793,6 +806,7 @@ export default class Run extends Phaser.Scene {
   }
   updateHud() {
     const h = this.hud;
+    if (this.blackout) { const c = this.cameras.main, p = this.player; this.blackout.setPosition(p.x - c.scrollX, p.y - 12 - c.scrollY); }
     h.hearts.forEach((img, i) => img.setTexture(i < this.hp ? 'heart' : 'heart_empty'));
     h.armor.forEach((img, i) => img.setVisible(i < this.armor));
     h.bounty.setText(fmt(this.stats.bounty));
@@ -848,9 +862,10 @@ export default class Run extends Phaser.Scene {
     this.ended = true;
     const r = {
       mode: this.mode, victory, abandoned, weapon: this.weaponId, boss: this.bossId, specimen: this.specimen,
-      score: Math.floor(this.stats.score), distance: this.stats.distance,
+      score: Math.floor(this.stats.score), baseScore: Math.floor(this.stats.baseScore || 0), heat: this.heatIds, heatMult: this.scoreMul, hero: this.heroId,
+      distance: this.stats.distance,
       kills: this.mode === 'training' ? 0 : this.stats.kills, trainingKills: this.stats.kills,
-      bosses: this.stats.bosses, bounty: this.mode === 'training' ? 0 : Math.floor(this.stats.bounty),
+      bosses: this.stats.bosses, bounty: this.mode === 'training' ? 0 : Math.floor(this.stats.bounty * (this.hero.bountyMul || 1)),
       wallJumps: this.stats.wallJumps, flawless: this.stats.flawless, map: this.mode === 'run' ? this.map.id : null,
     };
     this.cameras.main.fadeOut(300);
@@ -890,8 +905,9 @@ export default class Run extends Phaser.Scene {
       this.cleanup();
       this.stats.distance = Math.max(this.stats.distance, Math.floor((p.x - 60) / T));
       this.diff = Math.min(6, 1 + this.stats.distance / 350);
-      this.stats.score = this.stats.distance + this.stats.killScore + this.stats.chipScore;
-      if (this.stats.distance >= this.nextSupplyM && !this.arena) { this.nextSupplyM += SUPPLY_EVERY; this.spawnSupply(); }
+      this.stats.baseScore = this.stats.distance + this.stats.killScore + this.stats.chipScore;
+      this.stats.score = this.stats.baseScore * this.scoreMul;
+      if (this.stats.distance >= this.nextSupplyM && !this.arena) { this.nextSupplyM += SUPPLY_EVERY; if (!this.heat('nosupply')) this.spawnSupply(); }
       this.updateStorm(dt);
       if (p.body.blocked.down && !p.dead) this.lastSafe = { x: p.x, y: p.y };
       if (!p.dead && p.y > 330) this.fellInPit();

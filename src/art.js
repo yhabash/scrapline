@@ -486,6 +486,44 @@ export function buildArt(scene) {
     for (let i = 0; i < 6; i++) R(c, i % 2 ? P.m0 : P.amber, 2 + i * 2, 18, 2, 2);
   });
 
+  // ---- Trophy room ----
+  single(scene, 'trophy', 14, 16, c => {
+    R(c, P.amber, 2, 0, 10, 2); R(c, P.amberL, 3, 0, 3, 1); R(c, P.amber, 3, 2, 8, 4); R(c, P.amber, 4, 6, 6, 2); R(c, P.amberD, 9, 2, 2, 5);
+    R(c, P.amber, 0, 1, 2, 4); R(c, P.amber, 12, 1, 2, 4); R(c, P.amberD, 6, 8, 2, 3); R(c, P.amber, 4, 11, 6, 2); R(c, P.m2, 3, 13, 8, 3); R(c, P.m4, 3, 13, 8, 1);
+    R(c, P.white, 4, 2, 1, 2);
+  });
+  single(scene, 'trophy_dim', 14, 16, c => {
+    R(c, P.m2, 2, 0, 10, 2); R(c, P.m2, 3, 2, 8, 4); R(c, P.m2, 4, 6, 6, 2); R(c, P.m2, 0, 1, 2, 4); R(c, P.m2, 12, 1, 2, 4); R(c, P.m2, 6, 8, 2, 3); R(c, P.m2, 4, 11, 6, 2); R(c, P.m1, 3, 13, 8, 3);
+  });
+  single(scene, 'd_plant', 16, 24, c => { R(c, P.mag, 3, 17, 10, 7); R(c, P.magD, 3, 22, 10, 2); R(c, P.magL, 4, 17, 8, 1);
+    [[7, 2, 2, 15], [3, 6, 2, 9], [11, 5, 2, 10], [1, 10, 2, 6], [13, 9, 2, 6]].forEach(([x, y, w, h]) => R(c, P.lime, x, y, w, h)); R(c, P.limeD, 8, 4, 1, 12); });
+  single(scene, 'd_poster', 22, 28, c => { R(c, P.amberL, 0, 0, 22, 28); R(c, P.amberD, 0, 0, 22, 1); R(c, P.m1, 2, 2, 18, 5); R(c, P.red, 3, 3, 16, 3);
+    R(c, P.m2, 7, 9, 8, 10); R(c, P.cyan, 9, 12, 4, 2); R(c, P.red, 7, 16, 8, 1); R(c, P.m3, 3, 21, 16, 1); R(c, P.m3, 3, 23, 12, 1); R(c, P.amber, 5, 25, 12, 2); });
+  single(scene, 'd_lamp', 10, 26, c => { R(c, P.m3, 2, 22, 6, 4); R(c, P.m2, 3, 0, 4, 3); R(c, '#6a2a9a', 2, 3, 6, 19); R(c, P.mag, 3, 6, 3, 4); R(c, P.magL, 4, 14, 3, 3); R(c, P.mag, 3, 18, 4, 2); R(c, P.m3, 1, 21, 8, 1); });
+  single(scene, 'd_jukebox', 26, 36, c => { R(c, P.m1, 0, 8, 26, 28); R(c, P.mag, 0, 6, 26, 4); disc(c, 13, 8, 12, P.mag); disc(c, 13, 8, 9, P.amberL); disc(c, 13, 8, 6, P.cyan);
+    R(c, P.m2, 4, 16, 18, 10); for (let i = 0; i < 4; i++) R(c, [P.red, P.amber, P.lime, P.cyan][i], 6 + i * 4, 18, 2, 6); R(c, P.m3, 4, 28, 18, 6); R(c, P.mag, 0, 34, 26, 2); });
+  sheet(scene, 'd_arcade', 22, 40, 2, (c, f) => { R(c, P.m1, 2, 0, 18, 40); R(c, P.cyanD, 0, 0, 22, 4); R(c, P.m2, 4, 6, 14, 12); R(c, f ? P.lime : P.cyan, 5, 7, 12, 10);
+    R(c, P.m0, 7, 10, 2, 2); R(c, P.m0, 13, 12, 2, 2); R(c, P.m3, 2, 20, 18, 6); R(c, P.red, 6, 22, 2, 2); R(c, P.amber, 12, 22, 2, 2); R(c, P.lime, 15, 22, 2, 2); R(c, P.m2, 4, 28, 14, 12); R(c, P.cyanD, 0, 38, 22, 2); });
+  single(scene, 'd_statue', 30, 40, c => { R(c, P.m3, 2, 34, 26, 6); R(c, P.m4, 2, 34, 26, 1);
+    const g = P.amber, gl = P.amberL, gd = P.amberD; R(c, g, 9, 8, 12, 12); R(c, gl, 10, 9, 4, 3); R(c, P.red, 12, 12, 6, 2); R(c, g, 7, 20, 16, 8); R(c, gd, 18, 20, 5, 8); R(c, g, 8, 28, 5, 6); R(c, g, 17, 28, 5, 6); R(c, g, 3, 20, 4, 9); R(c, g, 23, 20, 4, 9); R(c, gl, 13, 4, 4, 4); });
+  single(scene, 'd_banner', 180, 16, c => { R(c, P.redD, 0, 0, 180, 12); R(c, P.red, 0, 1, 180, 10); for (let x = 0; x < 180; x += 12) { R(c, P.redD, x, 12, 6, 4); R(c, P.red, x + 6, 12, 6, 2); } R(c, P.amber, 0, 0, 180, 1); R(c, P.amber, 0, 11, 180, 1); });
+
+  // ---- Heat ----
+  single(scene, 'blackout', VW * 2 + 40, 580, c => {
+    const w = VW * 2 + 40, h = 580, g = c.createRadialGradient(w / 2, h / 2, 46, w / 2, h / 2, 150);
+    g.addColorStop(0, 'rgba(3,2,8,0)'); g.addColorStop(0.55, 'rgba(3,2,8,0.75)'); g.addColorStop(1, 'rgba(3,2,8,0.95)');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+  });
+  // 7x7 icons for each Heat modifier (leaderboard rows and the run setup screen)
+  const hi = (id, draw) => single(scene, 'heat_' + id, 7, 7, draw);
+  hi('one', c => { R(c, P.mag, 1, 1, 2, 1); R(c, P.mag, 4, 1, 2, 1); R(c, P.mag, 0, 2, 7, 2); R(c, P.mag, 1, 4, 5, 1); R(c, P.mag, 2, 5, 3, 1); R(c, P.mag, 3, 6, 1, 1); R(c, P.magL, 1, 2, 1, 1); });
+  hi('storm', c => { R(c, P.m5, 0, 1, 5, 1); R(c, P.m5, 2, 3, 5, 1); R(c, P.m5, 0, 5, 4, 1); R(c, P.white, 5, 0, 1, 1); });
+  hi('armor', c => { R(c, P.m4, 1, 0, 5, 4); R(c, P.m4, 2, 4, 3, 2); R(c, P.m4, 3, 6, 1, 1); R(c, P.m5, 2, 1, 1, 3); });
+  hi('trigger', c => { R(c, P.amber, 1, 2, 4, 3); R(c, P.amberL, 5, 3, 2, 1); R(c, P.amberD, 0, 2, 1, 3); R(c, P.amberL, 1, 2, 3, 1); });
+  hi('nosupply', c => { R(c, P.cyanD, 0, 1, 7, 6); R(c, P.cyan, 1, 2, 5, 4); R(c, P.red, 0, 0, 1, 1); R(c, P.red, 1, 1, 1, 1); R(c, P.red, 2, 2, 1, 1); R(c, P.red, 3, 3, 1, 1); R(c, P.red, 4, 4, 1, 1); R(c, P.red, 5, 5, 1, 1); R(c, P.red, 6, 6, 1, 1); });
+  hi('blackout', c => { R(c, P.lime, 2, 0, 3, 1); R(c, P.lime, 1, 1, 2, 5); R(c, P.lime, 0, 2, 1, 3); R(c, P.lime, 2, 6, 3, 1); R(c, P.limeD, 3, 1, 1, 1); R(c, P.limeD, 3, 5, 1, 1); });
+  single(scene, 'heat_flame', 7, 9, c => { R(c, P.red, 1, 3, 5, 6); R(c, P.red, 2, 1, 2, 2); R(c, P.red, 4, 2, 1, 1); R(c, P.amber, 2, 5, 3, 4); R(c, P.amber, 3, 3, 1, 2); R(c, P.amberL, 3, 7, 1, 2); });
+
   // ---- Christmas maps (December) ----
   // present: replaces the supply crate (same size, parachute lines, blinking bow)
   sheet(scene, 'present', 16, 22, 2, (c, f) => {
@@ -614,5 +652,6 @@ export function buildAnims(scene) {
   mk('scrap_spin', 'scrap', [0, 1, 2, 3], 10);
   mk('crate_blink', 'crate', [0, 1], 3);
   mk('present_blink', 'present', [0, 1], 3);
+  mk('d_arcade_blink', 'd_arcade', [0, 1], 2);
   mk('boom', 'boom', [0, 1, 2, 3, 4], 18, 0);
 }
