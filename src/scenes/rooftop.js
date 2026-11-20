@@ -36,7 +36,7 @@ export function drawRooftop(scene, { heroX = 326, dim = 0 } = {}) {
   });
   const hero = scene.add.sprite(heroX, RY, 'merc', 0).setOrigin(0.5, 1);
   hero.play('merc_idle');
-  if (xmas) { hatOn(scene, hero, { dx: -1, dy: 4 }); snowFall(scene, 2, 3); } else ashFall(scene, 3);
+  if (xmas) { hatOn(scene, hero, { dx: -1, dy: 4, depth: hero.depth }); snowFall(scene, 0, 0); } else ashFall(scene, 3);
   scene.add.image(0, 0, 'vignette').setOrigin(0);
   if (dim) scene.add.rectangle(0, 0, W, H, 0x05030a, dim).setOrigin(0);
   // pinned to the screen, so menus laid out at 480 wide can be centred with the camera (see centerLayout)

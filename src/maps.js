@@ -33,12 +33,23 @@ export const XMAS_MAPS = [
 ];
 export const ALL_MAPS = [...MAPS, ...XMAS_MAPS];
 
-// December on the player's clock. Off production, ?xmas=1 / ?xmas=0 forces it on or off for testing.
-export function isChristmas(now = new Date()) {
+// December on the player's clock. Off production, testers can preview it: the Settings screen has a
+// CHRISTMAS PREVIEW switch (remembered on that device), and ?xmas=1 / ?xmas=0 sets the same switch.
+const PREVIEW_KEY = 'scrapline_xmas_preview';
+export const isProductionHost = () => { try { return location.hostname === 'playscrapline.vercel.app'; } catch (e) { return true; } };
+export function getXmasPreview() {
+  if (isProductionHost()) return null;
   try {
     const q = new URLSearchParams(location.search).get('xmas');
-    if (q !== null && location.hostname !== 'playscrapline.vercel.app') return q === '1';
-  } catch (e) { /* not in a browser */ }
+    if (q !== null) localStorage.setItem(PREVIEW_KEY, q === '1' ? '1' : '0');
+    const v = localStorage.getItem(PREVIEW_KEY);
+    return v === null ? null : v === '1';
+  } catch (e) { return null; }
+}
+export function setXmasPreview(on) { try { localStorage.setItem(PREVIEW_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ } }
+export function isChristmas(now = new Date()) {
+  const preview = getXmasPreview();
+  if (preview !== null) return preview;
   return now.getMonth() === 11;
 }
 export const mapPool = () => (isChristmas() ? XMAS_MAPS : MAPS);
