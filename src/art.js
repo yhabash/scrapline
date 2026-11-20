@@ -427,6 +427,44 @@ export function buildArt(scene) {
     for (let i = 0; i < 6; i++) R(c, i % 2 ? P.m0 : P.amber, 2 + i * 2, 18, 2, 2);
   });
 
+  // ---- Christmas maps (December) ----
+  // present: replaces the supply crate (same size, parachute lines, blinking bow)
+  sheet(scene, 'present', 16, 22, 2, (c, f) => {
+    R(c, P.m3, 3, 0, 10, 1); line(c, P.m4, 3, 1, 1, 8); line(c, P.m4, 12, 1, 14, 8);
+    box(c, 1, 10, 14, 12, P.red, '#ff8a80', P.redD);
+    R(c, P.lime, 7, 10, 2, 12); R(c, P.lime, 1, 15, 14, 2); R(c, P.limeD, 7, 17, 2, 5);
+    const bow = f ? P.amberL : P.amber;
+    R(c, bow, 4, 7, 3, 3); R(c, bow, 9, 7, 3, 3); R(c, P.amberD, 7, 8, 2, 2); R(c, P.white, 5, 8, 1, 1); R(c, P.white, 10, 8, 1, 1);
+  }, true);
+  // santa hat for robots (10x8, tip flops to the left)
+  single(scene, 'santa_hat', 11, 9, c => {
+    R(c, P.redD, 2, 3, 7, 3); R(c, P.red, 3, 2, 5, 3); R(c, P.red, 2, 1, 3, 2); R(c, P.red, 1, 2, 2, 1);
+    R(c, '#ff8a80', 4, 2, 2, 1);
+    disc(c, 1, 2, 1, P.white);
+    R(c, P.white, 1, 6, 9, 2); R(c, P.m5, 1, 7, 9, 1);
+    outline(c, 0, 0, 11, 9);
+  });
+  // holographic Christmas tree (24x36), drawn as glowing outlines
+  single(scene, 'holo_tree', 24, 36, c => {
+    const g = P.lime, gd = P.limeD;
+    const tier = (y, hw, h) => { for (let i = 0; i <= h; i++) { const w = Math.round(hw * i / h); R(c, gd, 12 - w, y + i, w * 2 + 1, 1); R(c, g, 12 - w, y + i, 1, 1); R(c, g, 12 + w, y + i, 1, 1); } R(c, g, 12 - hw, y + h, hw * 2 + 1, 1); };
+    tier(5, 5, 8); tier(11, 8, 9); tier(18, 11, 11);
+    R(c, P.cyanD, 10, 30, 4, 5); R(c, P.cyan, 10, 30, 1, 5); R(c, P.cyan, 13, 30, 1, 5);
+    R(c, P.amberL, 12, 0, 1, 5); R(c, P.amberL, 10, 2, 5, 1); R(c, P.amber, 11, 1, 3, 3);
+    [[10, 11, P.mag], [14, 15, P.cyan], [8, 20, P.amber], [16, 22, P.mag], [11, 25, P.cyanL], [6, 27, P.red], [18, 27, P.amberL]].forEach(([x, y, col]) => R(c, col, x, y, 2, 2));
+  });
+  // string lights along roof edges (two colour sets that alternate to twinkle)
+  const bulbs = (key, cols) => single(scene, key, 16, 7, c => {
+    R(c, P.m2, 0, 1, 16, 1); R(c, P.m2, 3, 2, 2, 1); R(c, P.m2, 11, 2, 2, 1);
+    cols.forEach((col, i) => { const x = 3 + i * 8; R(c, col, x, 3, 2, 3); R(c, P.white, x, 3, 1, 1); });
+  });
+  bulbs('xlights_a', [P.red, P.lime]); bulbs('xlights_b', [P.cyan, P.amber]);
+  // snow cap on roof edges (16x5)
+  single(scene, 'snowcap', 16, 5, c => {
+    R(c, P.white, 0, 2, 16, 3); R(c, P.white, 2, 1, 5, 1); R(c, P.white, 9, 1, 4, 1); R(c, P.white, 4, 0, 2, 1);
+    R(c, P.m5, 0, 4, 16, 1); R(c, P.cyanL, 3, 4, 2, 1); R(c, P.cyanL, 11, 4, 3, 1);
+  });
+
   // fx particles
   single(scene, 'px', 2, 2, c => R(c, P.white, 0, 0, 2, 2));
   single(scene, 'spark', 3, 1, c => R(c, P.white, 0, 0, 3, 1));
@@ -511,5 +549,6 @@ export function buildAnims(scene) {
   ['crusher', 'hive', 'tank', 'sawjaw', 'warden', 'ronin'].forEach(b => mk('boss_' + b + '_idle', 'boss_' + b, [0, 1], b === 'sawjaw' ? 14 : 4));
   mk('scrap_spin', 'scrap', [0, 1, 2, 3], 10);
   mk('crate_blink', 'crate', [0, 1], 3);
+  mk('present_blink', 'present', [0, 1], 3);
   mk('boom', 'boom', [0, 1, 2, 3, 4], 18, 0);
 }

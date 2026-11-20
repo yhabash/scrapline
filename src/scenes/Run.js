@@ -4,7 +4,7 @@
 //   training - practice against a specimen bought in the training room
 import Phaser from 'phaser';
 import { Player, Enemy, Boss } from '../entities.js';
-import { MAPS, pickMap, seededRandom } from '../maps.js';
+import { MAPS, ALL_MAPS, mapPool, pickMap, seededRandom } from '../maps.js';
 import { WEAPONS, BOSSES, ENEMIES, MINIBOSSES, RUN_BOSS_CYCLE, BOSS_EVERY, SUPPLY_EVERY, SUPPLIES, loadSave } from '../data.js';
 import { OX, roomSides } from '../ui.js';
 import { W, H, txt, cityBackdrop, ashFall, glow, fmt, COL } from '../ui.js';
@@ -36,7 +36,10 @@ export default class Run extends Phaser.Scene {
     this.slowZones = []; this.towerHinted = false; this.camMinX = 0; this.prevJump = false;
     this.lastTop = GY;
     // map: fixed seed for the layout, theme colours. Combat randomness stays unseeded.
-    this.map = this.mode === 'run' ? (MAPS.find(m => m.id === this.mapId) || pickMap()) : MAPS[0];
+    this.map = this.mode === 'run' ? (ALL_MAPS.find(m => m.id === this.mapId) || pickMap()) : MAPS[0];
+    this.xmas = this.mode === 'run' && !!this.map.xmas; // December maps: snow, lights, trees, hats, presents
+    this.decor = seededRandom(this.map.seed ^ 0x5eed); // decorations only, so the layout stays the same
+    this.xLights = [];
     const rng = seededRandom(this.map.seed);
     this.rand = rng;
     this.between = (lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
@@ -45,7 +48,7 @@ export default class Run extends Phaser.Scene {
     // ----- backdrop
     if (this.mode === 'training') { roomSides(this); this.add.image(OX, 0, 'bg_training').setOrigin(0).setScrollFactor(0).setDepth(-10); }
     else this.backdrop = cityBackdrop(this, true, this.map.theme);
-    ashFall(this, 4);
+    if (this.xmas) this.snowFall(); else ashFall(this, 4);
 
     // ----- physics groups
     this.solids = this.physics.add.staticGroup();
@@ -120,7 +123,11 @@ export default class Run extends Phaser.Scene {
 
     if (this.mode === 'arena') this.time.delayedCall(700, () => this.startBossFight(this.arena, this.bossId, MINIBOSSES.find(m => m.id === this.bossId).level, false));
     if (this.mode === 'training') this.startTraining();
-    if (this.mode === 'run') this.banner(this.map.name, 'Map ' + this.map.id + ' of ' + MAPS.length + '  -  Outrun the scrap storm.', 0x3df5ff);
+    if (this.mode === 'run') {
+      const pool = mapPool(), n = pool.indexOf(this.map) + 1 || this.map.id;
+      if (this.xmas) this.banner(this.map.name, 'Christmas map ' + n + ' of ' + pool.length + '  -  Merry scrapmas!', 0x9dff3d);
+      else this.banner(this.map.name, 'Map ' + n + ' of ' + MAPS.length + '  -  Outrun the scrap storm.', 0x3df5ff);
+    }
     cam.fadeIn(300);
   }
 
@@ -135,11 +142,34 @@ export default class Run extends Phaser.Scene {
       const tint = this.map?.theme.tile ?? 0xffffff;
       this.track(this.add.tileSprite(x, top, w, 16, 'tile_top').setOrigin(0).setDepth(10).setTint(tint));
       this.track(this.add.tileSprite(x, top + 16, w, h - 16, style === 'tower' ? 'tile_tower' : 'tile_fill').setOrigin(0).setDepth(10).setTint(tint));
+      if (this.xmas) this.decorateRoof(x, top, w);
     }
     const z = this.add.zone(x, top, w, h).setOrigin(0);
     this.physics.add.existing(z, true); this.solids.add(z); this.track(z);
     this.seg?.spans.push({ x0: x, x1: x + w, y: top });
     return z;
+  }
+  // Christmas maps: snow on the edge, string lights hanging under it, and now and then a holographic tree.
+  decorateRoof(x, top, w) {
+    this.track(this.add.tileSprite(x, top - 3, w, 5, 'snowcap').setOrigin(0).setDepth(11));
+    const a = this.track(this.add.tileSprite(x + 1, top + 2, w - 2, 7, 'xlights_a').setOrigin(0).setDepth(11));
+    const b = this.track(this.add.tileSprite(x + 1, top + 2, w - 2, 7, 'xlights_b').setOrigin(0).setDepth(11).setAlpha(0));
+    b.tilePositionX = 4; this.xLights.push([a, b]);
+    if (w >= 70 && this.decor() < 0.55) {
+      const tx = x + 18 + Math.floor(this.decor() * (w - 36));
+      const tree = this.track(this.add.image(tx, top - 2, 'holo_tree').setOrigin(0.5, 1).setDepth(9).setAlpha(0.85).setBlendMode(Phaser.BlendModes.ADD));
+      const g = this.track(glow(this, tx, top - 16, COL.lime, 1.6, 0.22).setDepth(8));
+      this.tweens.add({ targets: [tree, g], alpha: '-=0.2', duration: 900 + Math.floor(this.decor() * 600), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+  }
+  snowFall() {
+    // two layers: small slow flakes far away, bigger faster ones close up
+    const flakes = (depth, scale, speed, freq, alpha) => this.add.particles(0, 0, 'px', {
+      x: { min: -40, max: W + 120 }, y: -6, lifespan: 9000, speedY: speed, speedX: { min: -14, max: 6 },
+      scale, alpha: { start: alpha, end: alpha * 0.4 }, tint: [0xffffff, 0xe8f4ff, 0xc4feff], frequency: freq,
+    }).setScrollFactor(0).setDepth(depth);
+    flakes(4, { min: 0.5, max: 0.9 }, { min: 14, max: 26 }, 70, 0.7);
+    flakes(30, { min: 1, max: 1.6 }, { min: 28, max: 44 }, 160, 0.9);
   }
   hang(x, top, bottom, w) {
     this.track(this.add.tileSprite(x, top, w, bottom - top - 16, 'tile_tower').setOrigin(0).setDepth(10));
@@ -686,11 +716,11 @@ export default class Run extends Phaser.Scene {
   spawnSupply() {
     const cam = this.cameras.main;
     const x = cam.scrollX + W + 30;
-    const c = this.crates.create(x, cam.scrollY + 10, 'crate');
-    c.play('crate_blink'); c.setDepth(16); c.body.setSize(16, 22).setOffset(0, 0); c.body.setVelocityY(120);
+    const c = this.crates.create(x, cam.scrollY + 10, this.xmas ? 'present' : 'crate');
+    c.play(this.xmas ? 'present_blink' : 'crate_blink'); c.setDepth(16); c.body.setSize(16, 22).setOffset(0, 0); c.body.setVelocityY(120);
     const g = glow(this, x, cam.scrollY, COL.cyan, 1.2, 0.5).setDepth(15);
     c.glow = g;
-    this.popup(cam.scrollX + W / 2, cam.scrollY + 60, 'SUPPLY DROP INBOUND', '#3df5ff', true);
+    this.popup(cam.scrollX + W / 2, cam.scrollY + 60, this.xmas ? 'PRESENT DROP INBOUND' : 'SUPPLY DROP INBOUND', this.xmas ? '#9dff3d' : '#3df5ff', true);
     sfx('supply');
   }
   openCrate(c) {
@@ -840,6 +870,10 @@ export default class Run extends Phaser.Scene {
 
   // =============================================================== main loop
   update(time, dt) {
+    if (this.xmas && Math.floor(time / 450) !== this.twinkle) {
+      this.twinkle = Math.floor(time / 450); const on = this.twinkle % 2;
+      this.xLights = this.xLights.filter(([a, b]) => a.active && (a.setAlpha(on ? 0.35 : 1), b.setAlpha(on ? 1 : 0), true));
+    }
     if (this.ended) { this.backdrop?.update(this.cameras.main.scrollX, this.cameras.main.scrollY); return; }
     dt = Math.min(dt, 50);
     const p = this.player, cam = this.cameras.main;

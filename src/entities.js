@@ -80,6 +80,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
 // ---------------------------------------------------------------- robots
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
+  hatDx = 1; hatDy = 3;
+  destroy(fromScene) { this.hat?.destroy(); this.hat = null; super.destroy(fromScene); }
   constructor(scene, x, y, type, opts = {}) {
     super(scene, x, y, type, 0);
     const cfg = ENEMIES[type];
@@ -98,6 +100,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const anim = { drone: 'drone_fly', walker: 'walker_walk', turret: 'turret_idle', crawler: 'crawler_walk', bomber: 'bomber_fly' }[type];
     this.anims.play(anim);
     if (type === 'walker') this.body.setSize(14, 20).setOffset(4, 2);
+    if (scene.xmas) this.hat = scene.add.image(x, y, 'santa_hat').setOrigin(0.5, 1).setDepth(21);
     if (type === 'crawler') this.body.setSize(12, 8).setOffset(2, 2);
     if (type === 'turret') this.body.setSize(14, 13).setOffset(2, 3);
   }
@@ -107,6 +110,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
   preUpdate(t, dt) {
     super.preUpdate(t, dt);
+    if (this.hat) this.hat.setPosition(this.x + (this.flipX ? 1 : -1) * this.hatDx, this.y - this.displayHeight * this.originY + this.hatDy).setFlipX(this.flipX);
     if (!this.active || this.dying || this.scene.frozen) return;
     if (!this.awake()) { if (this.flying) this.body.setVelocity(0, 0); return; }
     this.t += dt;
@@ -165,6 +169,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
 // ---------------------------------------------------------------- bosses
 export class Boss extends Phaser.Physics.Arcade.Sprite {
+  hatDx = 4; hatDy = 8;
+  destroy(fromScene) { this.hat?.destroy(); this.hat = null; super.destroy(fromScene); }
   constructor(scene, x, y, id, tier = 1, showMk = true) {
     const cfg = BOSSES[id];
     super(scene, x, y, cfg.tex, 0);
@@ -180,6 +186,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.mini = scene.mode === 'arena' ? MINIBOSSES.find(m => m.id === id) : null;
     if (this.mini) this.hp = this.hpMax = this.mini.hp;
     this.points = cfg.points * tier; this.bountyVal = cfg.bounty * tier;
+    if (scene.xmas) { this.hat = scene.add.image(x, y, 'santa_hat').setOrigin(0.5, 1).setDepth(26).setScale(2); this.hatDx = 4; this.hatDy = 8; }
     const [bw, bh, ox, oy] = cfg.body;
     this.body.setSize(bw, bh).setOffset(ox, oy);
     this.body.setAllowGravity(!cfg.flying);
@@ -192,6 +199,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   get A() { return this.scene.arena; }
   preUpdate(t, dt) {
     super.preUpdate(t, dt);
+    if (this.hat) this.hat.setPosition(this.x + (this.flipX ? 1 : -1) * this.hatDx, this.y - this.displayHeight * this.originY + this.hatDy).setFlipX(this.flipX);
     if (!this.active || this.dying || this.scene.frozen) return;
     const p = this.scene.player, b = this.body;
     this.timer -= dt;
