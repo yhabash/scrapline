@@ -33,7 +33,11 @@ const pathFor = (board, day) => board === 'week' ? `${ROOT}/week-${weekKey()}.js
   : board === 'daily' ? `${ROOT}/daily-${day || dailyKey()}.json`
   : board === 'rush' ? `${ROOT}/rush.json` : `${ROOT}/all-time.json`;
 const BOARDS = ['all', 'week', 'daily', 'rush'];
-const asc = (board) => board === 'rush'; // Boss Rush: fastest (lowest) time first
+// Ranking order. Boss Rush: most bosses beaten first (full clears above any run that died partway),
+// then the fastest time. Other boards: highest score first. Ties go to whoever got there first.
+const byScore = (a, b) => b.score - a.score || a.at - b.at;
+const byRush = (a, b) => (b.bosses - a.bosses) || (a.score - b.score) || a.at - b.at;
+const cmpFor = (board) => (board === 'rush' ? byRush : byScore);
 
 async function readBoard(path, withEtag = false) {
   if (!USE_BLOB) { const v = memory.get(path); return { list: v ? JSON.parse(v.body) : [], etag: v?.etag || null }; }
@@ -63,31 +67,31 @@ async function writeBoard(path, list, etag) {
     cacheControlMaxAge: 60, ...(etag ? { ifMatch: etag } : {}),
   });
 }
-const sortBoard = (l, up = false) => l.sort((a, b) => (up ? a.score - b.score : b.score - a.score) || a.at - b.at);
+const sortBoard = (l, cmp = byScore) => l.sort(cmp);
 // One entry per name: keep each name's best score (earliest wins a tie).
 const key = (e) => String(e.name).toUpperCase();
-function onePerName(list, up = false) {
+function onePerName(list, cmp = byScore) {
   const seen = new Set();
-  return sortBoard([...list], up).filter(e => (seen.has(key(e)) ? false : (seen.add(key(e)), true)));
+  return sortBoard([...list], cmp).filter(e => (seen.has(key(e)) ? false : (seen.add(key(e)), true)));
 }
-const qualifies = (list, score, up = false) => list.length < MAX || (up ? score < list[list.length - 1].score : score > list[list.length - 1].score);
+const qualifies = (list, entry, cmp = byScore) => list.length < MAX || cmp(entry, list[list.length - 1]) < 0;
 
 // Insert with optimistic concurrency: re-read and retry if someone else wrote first.
 // If conditional writes keep failing (for example the storage service rejecting the
 // ETag), the last attempt writes without the check rather than losing the player's score.
 const TRIES = 5;
 async function submitTo(board, entry, day) {
-  const path = pathFor(board, day), up = asc(board);
+  const path = pathFor(board, day), cmp = cmpFor(board);
   for (let attempt = 0; attempt < TRIES; attempt++) {
     const last = attempt === TRIES - 1;
     const read = await readBoard(path, true), etag = read.etag;
-    const list = onePerName(read.list, up);
+    const list = onePerName(read.list, cmp);
     // Same name already has an equal or better score: keep that one, nothing to write.
     const mine = list.find(e => key(e) === key(entry));
-    if (mine && (up ? mine.score <= entry.score : mine.score >= entry.score)) return { rank: list.indexOf(mine) + 1, id: mine.id, kept: true, best: mine.score, entries: list.slice(0, MAX) };
+    if (mine && cmp(mine, entry) <= 0) return { rank: list.indexOf(mine) + 1, id: mine.id, kept: true, best: mine.score, bestBosses: mine.bosses, entries: list.slice(0, MAX) };
     const others = list.filter(e => key(e) !== key(entry));
-    if (!qualifies(others, entry.score, up)) return { rank: null, entries: list.slice(0, MAX) };
-    const next = sortBoard([...others, entry], up).slice(0, MAX);
+    if (!qualifies(others, entry, cmp)) return { rank: null, entries: list.slice(0, MAX) };
+    const next = sortBoard([...others, entry], cmp).slice(0, MAX);
     try {
       await writeBoard(path, next, last ? null : etag);
       if (attempt > 0) console.warn('leaderboard write needed retries', { board, attempt, unconditional: last });
@@ -127,7 +131,7 @@ export default {
         const board = BOARDS.includes(q.get('board')) ? q.get('board') : 'all';
         const day = DAY_RE.test(q.get('day') || '') ? q.get('day') : dailyKey();
         const { list } = await readBoard(pathFor(board, day));
-        return json({ board, week: weekKey(), day, env: ENV, entries: onePerName(list, asc(board)).slice(0, MAX) }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
+        return json({ board, week: weekKey(), day, env: ENV, entries: onePerName(list, cmpFor(board)).slice(0, MAX) }, 200, { 'cache-control': 'public, max-age=0, s-maxage=10, stale-while-revalidate=30' });
       }
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -154,8 +158,8 @@ export default {
       if ([entry.score, entry.distance, entry.kills, entry.bosses].some(v => v < 0) || entry.score === 0) return json({ error: 'Invalid run.' }, 400);
       const mode = ['daily', 'rush'].includes(body.mode) ? body.mode : 'run';
       if (mode === 'rush') {
-        // score is the clear time in ms; all six bosses must be beaten
-        if (entry.bosses !== 6 || entry.score < 20000 || entry.score > 3600000) return json({ error: 'That run does not add up.' }, 400);
+        // score is the time in ms (to the clear, or to when you died); at least one boss beaten
+        if (entry.bosses < 1 || entry.bosses > 6 || entry.score < 3500 * entry.bosses || entry.score > 3600000) return json({ error: 'That run does not add up.' }, 400);
         const rush = await submitTo('rush', entry);
         recent.set(ip, now);
         console.log('leaderboard submit', { mode, time: entry.score, rank: rush.rank, keptBetter: !!rush.kept });

@@ -56,7 +56,7 @@ export default class Leaderboard extends Phaser.Scene {
     this.board = board; this.page = 0;
     this.tabs.forEach(t => { t.color = t.boardId === board ? COL.amber : COL.m3; t.draw(); });
     this.heads[2].setText(board === 'rush' ? 'TIME' : 'SCORE');
-    this.heads[3].setVisible(board !== 'rush'); this.heads[4].setVisible(board !== 'rush'); this.heads[6].setVisible(board !== 'rush');
+    this.heads[3].setVisible(board !== 'rush'); this.heads[6].setVisible(board !== 'rush');
     if (this.cache[board]) { this.entries = this.cache[board].entries; this.weekLabel(this.cache[board].week); this.render(); return; }
     this.entries = []; this.render(); this.status.setText('LOADING...');
     try {
@@ -78,7 +78,7 @@ export default class Leaderboard extends Phaser.Scene {
   weekLabel(wk) {
     const t = this.board === 'week' && wk ? 'WEEK ' + wk.split('-W')[1] + '  -  RESETS MONDAY 00:00 UTC'
       : this.board === 'daily' ? (this.champ ? 'YESTERDAY\'S CHAMP: ' + this.champ + '  -  ' : '') + 'RESETS MIDNIGHT ET'
-      : this.board === 'rush' ? 'FASTEST FULL CLEAR' : '';
+      : this.board === 'rush' ? 'FULL CLEARS FIRST, THEN MOST BOSSES' : '';
     this.weekT.setText(t); this.weekT.setX(Math.round(W - 28 - this.weekT.width));
   }
   async loadChampion() {
@@ -107,7 +107,7 @@ export default class Leaderboard extends Phaser.Scene {
       const rush = this.board === 'rush';
       r.score.setText(e ? (rush ? fmtTime(e.score) : fmt(e.score)) : '').setColor(col); r.score.setX(Math.round(238 - r.score.width));
       r.dist.setText(e && !rush ? fmt(e.distance) + 'm' : '').setColor('#8a84ad'); r.dist.setX(Math.round(280 - r.dist.width));
-      r.bosses.setText(e && !rush ? String(e.bosses) : '').setColor('#8a84ad'); r.bosses.setX(Math.round(306 - r.bosses.width));
+      r.bosses.setText(e ? (rush ? e.bosses + '/6' : String(e.bosses)) : '').setColor(rush && e && e.bosses < 6 ? '#575177' : '#8a84ad'); r.bosses.setX(Math.round(306 - r.bosses.width));
       r.icon.setVisible(!!e); if (e) r.icon.setTexture('w_' + e.weapon);
       const hero = e && HEROES[e.hero] ? e.hero : 'merc';
       r.hero.setVisible(!!e); r.hero.setTint(HEROES[hero].tint);

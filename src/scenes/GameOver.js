@@ -58,7 +58,7 @@ export default class GameOver extends Phaser.Scene {
       if (r.heat?.length) rows.push(['HEAT', fmt(r.baseScore) + '  x' + r.heatMult.toFixed(2)]);
       rows.push(['SCORE', fmt(r.score)]);
     } else if (r.mode === 'rush') {
-      rows.push(['BOSSES DEFEATED', r.bosses + ' / 6'], ['TIME', r.victory ? fmtTime(r.rushTime) : 'did not finish']);
+      rows.push(['BOSSES DEFEATED', r.bosses + ' / 6'], ['TIME', fmtTime(r.rushTime) + (r.victory ? '' : '  (did not finish)')]);
     } else {
       rows.push(['OPPONENT', BOSSES[r.boss].name], ['ROBOTS DESTROYED', fmt(r.kills)]);
     }
@@ -79,7 +79,8 @@ export default class GameOver extends Phaser.Scene {
       txt(this, W / 2 - 44, y, 'WEAPON UNLOCKED: ' + WEAPONS[unlock].name.toUpperCase(), { color: '#9dff3d' });
       y += 16;
     }
-    const canSubmit = (r.mode === 'run' && r.score > 0) || (r.mode === 'rush' && r.victory);
+    // Boss Rush: any run that beat at least one boss goes on the board; full clears always rank higher
+    const canSubmit = (r.mode === 'run' && r.score > 0) || (r.mode === 'rush' && r.bosses > 0);
     const limitY = canSubmit ? 178 : 200;
     if (earned.length) {
       txt(this, 80, y, 'ACHIEVEMENTS', { color: '#ffb03d' }); y += 12;
@@ -149,7 +150,7 @@ export default class GameOver extends Phaser.Scene {
         const m = res.main, board = mode === 'rush' ? 'rush' : 'daily', label = mode === 'rush' ? 'BOSS RUSH #' : 'DAILY #';
         if (m.id) rememberEntry(m.id);
         this.nameDom.node.disabled = true;
-        if (m.kept) { sfx('uiSelect'); msg('Your best ' + (mode === 'rush' ? fmtTime(m.best) : fmt(m.best)) + ' stays', '#c9c5e3'); }
+        if (m.kept) { sfx('uiSelect'); msg('Your best ' + (mode === 'rush' ? m.bestBosses + '/6 ' + fmtTime(m.best) : fmt(m.best)) + ' stays', '#c9c5e3'); }
         else if (m.rank) { sfx('victory'); msg(label + m.rank, '#9dff3d'); }
         else { sfx('uiSelect'); msg('Not in the top 100 yet.', '#c9c5e3'); }
         this.submitBtn.setLabel('VIEW'); this.submitBtn.setEnabled(true);
