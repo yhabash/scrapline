@@ -50,5 +50,7 @@ export function transitionTo(scene, key, data) {
   if (scene._leaving) return;
   scene._leaving = true;
   scene.cameras.main.fadeOut(220, 5, 3, 10);
-  scene.time.delayedCall(230, () => scene.scene.start(key, data));
+  // Always pass fresh data: Phaser reuses a scene's previous data when none is given, which once sent
+  // START RUN into the last mini-boss fight.
+  scene.time.delayedCall(230, () => scene.scene.start(key, data || {}));
 }
