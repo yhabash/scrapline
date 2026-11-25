@@ -66,6 +66,7 @@ export default class Run extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.pBullets = this.physics.add.group({ allowGravity: false });
     this.grenades = this.physics.add.group();
+    this.bomblets = this.physics.add.group(); // Grenade Launcher cluster bomblets
     this.discs = this.physics.add.group({ allowGravity: false });
     this.eBullets = this.physics.add.group({ allowGravity: false });
     this.eBombs = this.physics.add.group();
@@ -88,6 +89,8 @@ export default class Run extends Phaser.Scene {
     P.add.overlap(this.eBullets, this.solids, (b) => { if (!b.noSolid) this.popBullet(b); });
     P.add.overlap(this.pBullets, this.enemies, (b, e) => this.bulletHitEnemy(b, e));
     P.add.overlap(this.grenades, this.enemies, (g) => this.explodeGrenade(g));
+    P.add.collider(this.bomblets, this.solids); // bomblets bounce along the ground until their fuse runs out
+    P.add.overlap(this.bomblets, this.enemies, (b) => this.explodeBomblet(b));
     P.add.overlap(this.player, this.enemies, (p, e) => { if (!e.dying && !(e.isBoss && e.state === 'intro')) this.hurtPlayer(e.x); });
     P.add.overlap(this.player, this.eBullets, (p, b) => { if (this.hurtPlayer(b.x) && !b.persistent) b.destroy(); });
     P.add.overlap(this.player, this.eBombs, (p, b) => this.explodeBomb(b));
@@ -543,6 +546,7 @@ export default class Run extends Phaser.Scene {
       const g = this.grenades.create(mx, my, 'grenade');
       g.body.setVelocity(dir * 230 + p.body.velocity.x * 0.3, -200);
       g.life = 1600; g.dmg = w.dmg * this.dmgMul(); g.radius = w.radius; g.setDepth(35);
+      g.cluster = w.cluster || 0; g.bDmg = (w.bombletDmg || 0) * this.dmgMul(); g.bRadius = w.bombletRadius || 0;
       this.muzzle(mx, my, COL.lime);
       return;
     }
@@ -610,6 +614,24 @@ export default class Run extends Phaser.Scene {
     this.fxBoom(x, y, 1.4);
     sfx('explode');
     this.cameras.main.shake(120, 0.006);
+    for (const e of this.enemies.getChildren().slice()) {
+      if (e.active && !e.dying && Phaser.Math.Distance.Between(x, y, e.x, e.y) < R + e.body.width / 2) e.hurt(dmg);
+    }
+    // cluster: scatter bomblets that bounce and go off a moment later
+    for (let i = 0; i < (g.cluster || 0); i++) {
+      const b = this.bomblets.create(x, y - 4, 'grenade');
+      const spread = (i - (g.cluster - 1) / 2) * 95 + Phaser.Math.Between(-20, 20);
+      b.setScale(0.65).setTint(0xffd23d).setDepth(35);
+      b.body.setVelocity(spread, Phaser.Math.Between(-210, -150)).setBounce(0.45, 0.45).setDrag(40, 0);
+      b.life = 420 + i * 90; b.dmg = g.bDmg; b.radius = g.bRadius;
+    }
+  }
+  explodeBomblet(b) {
+    if (!b.active) return;
+    const x = b.x, y = b.y, R = b.radius, dmg = b.dmg;
+    b.destroy();
+    this.fxBoom(x, y, 0.8);
+    sfx('explode');
     for (const e of this.enemies.getChildren().slice()) {
       if (e.active && !e.dying && Phaser.Math.Distance.Between(x, y, e.x, e.y) < R + e.body.width / 2) e.hurt(dmg);
     }
@@ -948,6 +970,7 @@ export default class Run extends Phaser.Scene {
     for (const b of this.pBullets.getChildren().slice()) { b.life -= dt; if (b.life <= 0) b.destroy(); }
     for (const d of this.discs.getChildren().slice()) { d.life -= dt; d.rotation += dt * 0.03 * Math.sign(d.body.velocity.x || 1); if (d.life <= 0) this.popBullet(d); }
     for (const g of this.grenades.getChildren().slice()) { g.life -= dt; g.rotation += dt * 0.02; if (g.life <= 0) this.explodeGrenade(g); }
+    for (const b of this.bomblets.getChildren().slice()) { b.life -= dt; b.rotation += dt * 0.03; if (b.life <= 0) this.explodeBomblet(b); }
     for (const b of this.eBullets.getChildren().slice()) {
       b.life -= dt;
       if (b.homing && b.life > 600) {
@@ -991,7 +1014,7 @@ export default class Run extends Phaser.Scene {
       return true;
     });
     const far = this.cameras.main.scrollX - 220, farR = this.cameras.main.scrollX + W + 400;
-    for (const grp of [this.enemies, this.pBullets, this.eBullets, this.pickups, this.eBombs, this.grenades, this.discs]) {
+    for (const grp of [this.enemies, this.pBullets, this.eBullets, this.pickups, this.eBombs, this.grenades, this.bomblets, this.discs]) {
       for (const o of grp.getChildren().slice()) if (o.x < far || ((grp === this.pBullets || grp === this.discs) && o.x > farR)) { if (o === this.boss) continue; o.destroy(); }
     }
     this.slowZones = this.slowZones.filter(([, b]) => b > left);

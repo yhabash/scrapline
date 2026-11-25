@@ -8,7 +8,7 @@ export const WEAPONS = {
   scatter: { name: 'Scattergun', desc: 'Five pellets. Brutal up close.', rate: 640, dmg: 0.8, speed: 400, spread: 24, pellets: 5, tex: 'b_pellet', life: 320, unlock: 'Defeat mini-boss SAWJAW' },
   arc: { name: 'Arc Rifle', desc: 'Energy bolts pierce through bots.', rate: 380, dmg: 1.3, speed: 620, spread: 0, pellets: 1, pierce: true, tex: 'b_arc', life: 800, unlock: 'Defeat mini-boss TESLA WARDEN' },
   disc: { name: 'Ricochet Disc', desc: 'Saw discs bounce off walls and floors.', rate: 430, dmg: 1.7, speed: 360, spread: 0, pellets: 1, disc: true, bounces: 4, tex: 'b_disc', life: 1500, unlock: 'Defeat mini-boss GUTTER RONIN' },
-  launcher: { name: 'Grenade Launcher', desc: 'Arcing explosives. Area damage.', rate: 720, dmg: 3, grenade: true, radius: 38, unlock: 'Achievement: Demolisher' },
+  launcher: { name: 'Grenade Launcher', desc: 'Grenades burst into 3 cluster bomblets.', rate: 720, dmg: 3, grenade: true, radius: 38, cluster: 3, bombletDmg: 1.4, bombletRadius: 26, unlock: 'Achievement: Demolisher' },
   rail: { name: 'Rail Lance', desc: 'Slow, devastating piercing shot.', rate: 950, dmg: 6, speed: 950, spread: 0, pellets: 1, pierce: true, tex: 'b_rail', life: 600, unlock: 'Achievement: Titan Breaker' },
 };
 export const WEAPON_ORDER = ['pistol', 'smg', 'scatter', 'arc', 'disc', 'launcher', 'rail'];
